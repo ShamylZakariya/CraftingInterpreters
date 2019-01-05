@@ -15,6 +15,7 @@ public class Lox {
     private static final Interpreter interpreter = new Interpreter();
     static boolean hadError = false;
     static boolean hadRuntimeError = false;
+    static boolean isRepl = false;
 
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
@@ -61,8 +62,11 @@ public class Lox {
     }
 
     private static void runPrompt() throws IOException {
+        isRepl = true;
+
         InputStreamReader input = new InputStreamReader(System.in);
         BufferedReader reader = new BufferedReader(input);
+
         for (;;) {
             System.out.print("> ");
             run(reader.readLine());
