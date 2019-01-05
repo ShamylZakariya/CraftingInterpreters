@@ -2,6 +2,7 @@
   <dictionary name="shamyl">
     <words>
       <w>jlox</w>
+      <w>repl</w>
     </words>
   </dictionary>
 </component>

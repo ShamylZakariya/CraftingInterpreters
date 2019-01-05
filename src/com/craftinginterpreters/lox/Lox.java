@@ -1,5 +1,7 @@
 package com.craftinginterpreters.lox;
 
+import javafx.css.CssParser;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -73,11 +75,11 @@ public class Lox {
         List<Token> tokens = scanner.scanTokens();
 
         Parser parser = new Parser(tokens);
-        Expr expression = parser.parse();
+        List<Stmt> statements = parser.parse();
 
         if (hadError) { return; }
 
-        interpreter.interpret(expression);
+        interpreter.interpret(statements);
     }
 
 }

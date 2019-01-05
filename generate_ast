@@ -1,0 +1,6 @@
+#!/bin/sh
+
+javac -d out/production/CraftingInterpreters/com/craftinginterpreters/tool src/com/craftinginterpreters/tool/GenerateAst.java 
+pushd out/production/CraftingInterpreters
+java com.craftinginterpreters.tool.GenerateAst ../../../src/com/craftinginterpreters/lox
+popd
