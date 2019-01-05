@@ -1,6 +1,15 @@
 #!/bin/sh
 
+# make silent versions of pushd popd
+silent_pushd () {
+    command pushd "$@" > /dev/null
+}
+
+silent_popd () {
+    command popd "$@" > /dev/null
+}
+
 javac -d out/production/CraftingInterpreters/ src/com/craftinginterpreters/tool/GenerateAst.java 
-pushd out/production/CraftingInterpreters
+silent_pushd out/production/CraftingInterpreters
 java com.craftinginterpreters.tool.GenerateAst ../../../src/com/craftinginterpreters/lox
-popd
+silent_popd
