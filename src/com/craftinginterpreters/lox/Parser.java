@@ -27,10 +27,6 @@ class Parser {
         return statements;
     }
 
-    private Expr expression() {
-        return assignment();
-    }
-
     private Stmt declaration() {
         try {
             if (match(VAR)) {
@@ -201,8 +197,12 @@ class Parser {
         return statements;
     }
 
+    private Expr expression() {
+        return assignment();
+    }
+
     private Expr assignment() {
-        Expr expr = or();
+        Expr expr = ternary();
         if (match(EQUAL)) {
             Token equals = previous();
             Expr value = assignment();
@@ -215,6 +215,17 @@ class Parser {
             error(equals, "Invalid assignment target.");
         }
 
+        return expr;
+    }
+
+    private Expr ternary() {
+        Expr expr = or();
+        if (match(QUESTION_MARK)) {
+            Expr thenBranch = expression();
+            consume(COLON, "Expect ':' separating components of ternary expression.");
+            Expr elseBranch = expression();
+            return new Expr.Ternary(expr, thenBranch, elseBranch);
+        }
         return expr;
     }
 

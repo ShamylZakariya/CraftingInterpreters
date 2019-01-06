@@ -160,6 +160,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Object visitTernaryExpr(Expr.Ternary expr) {
+        if (isTruthy(evaluate(expr.condition))) {
+            return evaluate(expr.thenBranch);
+        }
+        return evaluate(expr.elseBranch);
+    }
+
+    @Override
     public Object visitUnaryExpr(Expr.Unary expr) {
         Object right = evaluate(expr.right);
         switch (expr.operator.type) {
