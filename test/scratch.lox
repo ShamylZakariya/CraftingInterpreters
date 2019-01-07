@@ -1,1 +1,6 @@
-print true ? 1 : 0;
+fun sayHi(first, last) {
+    print "Hi, " + first + " " + last + "!";
+}
+
+sayHi("Dear", "Leader");
+print sayHi;
