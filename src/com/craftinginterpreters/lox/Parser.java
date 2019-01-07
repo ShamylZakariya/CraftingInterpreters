@@ -93,7 +93,14 @@ class Parser {
         }
         consume(RIGHT_PAREN, "Expect ')' after for clauses.");
 
-        Stmt body = statement();
+        Stmt body;
+        try {
+            enclosingLoopDepth++;
+            body = statement();
+        } finally {
+            enclosingLoopDepth--;
+        }
+
         /*
             we're taking a for loop and desugaring it to a while loop
 
@@ -192,13 +199,14 @@ class Parser {
     }
 
     private Stmt breakStatement() {
+        Token breakToken = previous();
         if (enclosingLoopDepth == 0) {
-            error(previous(), "'break' statement may only exist inside an enclosing loop.");
+            error(breakToken, "'break' statement may only exist inside an enclosing loop.");
         }
 
         consume(SEMICOLON, "Expect ';' after break statement.");
 
-        return new Stmt.Break();
+        return new Stmt.Break(breakToken);
     }
 
     private Stmt expressionStatement() {

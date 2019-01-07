@@ -26,13 +26,15 @@ abstract class Stmt {
         final List<Stmt> statements;
     }
     static class Break extends Stmt {
-        Break() {
+        Break(Token keyword) {
+            this.keyword = keyword;
         }
 
         <R> R accept(Visitor<R> visitor) {
             return visitor.visitBreakStmt(this);
         }
 
+        final Token keyword;
     }
     static class Expression extends Stmt {
         Expression(Expr expression) {
