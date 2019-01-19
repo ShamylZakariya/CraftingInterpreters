@@ -248,7 +248,10 @@ class Parser {
 
     private Expr assignment() {
         Expr expr = ternary();
-        if (match(EQUAL)) {
+        if (match(FUN)) {
+            expr = lambda();
+        }
+        else if (match(EQUAL)) {
             Token equals = previous();
             Expr value = assignment();
 
@@ -261,6 +264,24 @@ class Parser {
         }
 
         return expr;
+    }
+
+    private Expr lambda() {
+        consume(LEFT_PAREN, "Expect '(' after 'fun' lambda expression declaration.");
+        List<Token> parameters = new ArrayList<>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (parameters.size() >= 8) {
+                    error(peek(), "Cannot have more than 8 parameters.");
+                }
+                parameters.add(consume(IDENTIFIER, "Expect parameter name."));
+            } while (match(COMMA));
+        }
+        consume(RIGHT_PAREN, "Expect ')' after lambda parameters.");
+        // TODO: Opportunity to make a single-line lambda without braces - read a single expression if no LEFT_BRACE
+        consume(LEFT_BRACE, "Expect '{' before lambda body.");
+        List<Stmt> body = block();
+        return new Expr.Lambda(parameters, body);
     }
 
     private Expr ternary() {
@@ -379,6 +400,7 @@ class Parser {
     }
 
     private Expr primary() {
+        if (match(FUN)) return lambda();
         if (match(FALSE)) return new Expr.Literal(false);
         if (match(TRUE)) return new Expr.Literal(true);
         if (match(NIL)) return new Expr.Literal(null);
