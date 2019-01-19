@@ -10,3 +10,10 @@ So, we do the following:
 - `Interpreter::visitLambdaExpr` and return a new LoxLambda
 - `Parser` need to catch lambdas as `assignment` so we can say `var f = fun(){}` and we need to catch lambdas as `primary` so they can be caught in a function `call()` expression.
 
+Per the challenge notes, how to handle a `fun(){};` in the context of a statement? 
+- I'm happy to treat it as an error! A lambda which isn't called, nor stored in a var would simply be created and discarded. **So it's an error**.
+
+What about `(fun(){...})();` - this should be allowed to work.
+
+## Chapter 11
+The Resolver looks like the right place to throw an error if a break statement occurs without an enclosing while loop. My current implementation will break out of nested function calls to the closest while loop, which is neat, but bad. I should copy Resolver::resolveFunction's approach to keep track of whether the current function context has a while loop in it.  

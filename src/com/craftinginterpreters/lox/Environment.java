@@ -34,8 +34,22 @@ public class Environment {
         throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
     }
 
+    Object getAt(int distance, String name) {
+        Environment anc = ancestor(distance);
+        assert anc.values.containsKey(name) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
+        return anc.values.get(name);
+    }
+
     void define(String name, Object value) {
         values.put(name, value != null ? value : UNASSIGNED_SENTINEL);
+    }
+
+    Environment ancestor(int distance) {
+        Environment env = this;
+        for (int i = 0; i < distance; i++) {
+            env = env.enclosing;
+        }
+        return env;
     }
 
     void assign(Token name, Object value) {
@@ -50,6 +64,10 @@ public class Environment {
         }
 
         throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
+    }
+
+    void assignAt(int distance, Token name, Object value) {
+        ancestor(distance).values.put(name.lexeme, value);
     }
 
 
