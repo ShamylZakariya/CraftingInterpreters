@@ -12,7 +12,6 @@ class Parser {
 
     private final List<Token> tokens;
     private int current = 0;
-    private int enclosingLoopDepth = 0;
 
     Parser(List<Token> tokens) {
         this.tokens = tokens;
@@ -93,13 +92,7 @@ class Parser {
         }
         consume(RIGHT_PAREN, "Expect ')' after for clauses.");
 
-        Stmt body;
-        try {
-            enclosingLoopDepth++;
-            body = statement();
-        } finally {
-            enclosingLoopDepth--;
-        }
+        Stmt body = statement();
 
         /*
             we're taking a for loop and desugaring it to a while loop
@@ -186,24 +179,13 @@ class Parser {
         Expr condition = expression();
         consume(RIGHT_PAREN, "Expect ')' after a condition.");
 
-        Stmt body = null;
-
-        try {
-            enclosingLoopDepth++;
-            body = statement();
-        } finally {
-            enclosingLoopDepth--;
-        }
+        Stmt body = statement();
 
         return new Stmt.While(condition, body);
     }
 
     private Stmt breakStatement() {
         Token breakToken = previous();
-        if (enclosingLoopDepth == 0) {
-            error(breakToken, "'break' statement may only exist inside an enclosing loop.");
-        }
-
         consume(SEMICOLON, "Expect ';' after break statement.");
 
         return new Stmt.Break(breakToken);

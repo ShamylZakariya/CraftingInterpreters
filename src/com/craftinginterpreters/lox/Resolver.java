@@ -16,6 +16,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack();
     private FunctionType currentFunction = FunctionType.NONE;
+    private boolean whileStatementPresent = false;
 
     public Resolver(Interpreter interpreter) {
         this.interpreter = interpreter;
@@ -39,6 +40,10 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         FunctionType enclosingFunction = currentFunction;
         currentFunction = type;
 
+        // on entry into a function, reset the presence of a while statement to false
+        boolean enclosingWhileStatementPresent = whileStatementPresent;
+        whileStatementPresent = false;
+
         beginScope();
         for (Token param : function.params) {
             declare(param);
@@ -47,12 +52,17 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         resolve(function.body);
         endScope();
 
+        whileStatementPresent = enclosingWhileStatementPresent;
         currentFunction = enclosingFunction;
     }
 
     private void resolveLambda(Expr.Lambda lambda) {
         FunctionType enclosingFunction = currentFunction;
         currentFunction = FunctionType.LAMBDA;
+
+        // on entry into a function, reset the presence of a while statement to false
+        boolean enclosingWhileStatementPresent = whileStatementPresent;
+        whileStatementPresent = false;
 
         beginScope();
         for (Token param : lambda.params) {
@@ -62,6 +72,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         resolve(lambda.body);
         endScope();
 
+        whileStatementPresent = enclosingWhileStatementPresent;
         currentFunction = enclosingFunction;
     }
 
@@ -117,6 +128,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitBreakStmt(Stmt.Break stmt) {
+
+        if (!whileStatementPresent) {
+            Lox.error(stmt.keyword, "Cannot break outside of a loop.");
+        }
+
         return null;
     }
 
@@ -167,8 +183,14 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitWhileStmt(Stmt.While stmt) {
+        boolean enclosingWhileStatementPresent = whileStatementPresent;
+        whileStatementPresent = true;
+
         resolve(stmt.condition);
         resolve(stmt.body);
+
+        whileStatementPresent = enclosingWhileStatementPresent;
+
         return null;
     }
 

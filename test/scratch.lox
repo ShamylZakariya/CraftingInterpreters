@@ -1,0 +1,20 @@
+fun hasWhile() {
+    var i = 3;
+    while(true) {
+        if (i <= 0) {
+            break;
+        }
+
+        (fun(){
+            break;
+        })();
+
+        i = i - 1;
+    }
+}
+
+fun noWhile() {
+    break;
+}
+
+break;
