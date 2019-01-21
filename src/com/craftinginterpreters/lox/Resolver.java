@@ -1,9 +1,6 @@
 package com.craftinginterpreters.lox;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
@@ -15,6 +12,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack();
+    private final Stack<Set<Token>> unaccessedVariables = new Stack();
     private FunctionType currentFunction = FunctionType.NONE;
     private boolean whileStatementPresent = false;
 
@@ -77,11 +75,18 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     private void beginScope() {
-        scopes.push(new HashMap<String, Boolean>());
+        scopes.push(new HashMap<>());
+        unaccessedVariables.push(new HashSet<>());
     }
 
     private void endScope() {
         scopes.pop();
+
+        // check if we have any variables with read count of zero and report error
+        Set<Token> unaccessedVariablesForScope = unaccessedVariables.pop();
+        for (Token t : unaccessedVariablesForScope) {
+            Lox.error(t, "Variable \"" + t.lexeme + "\" was defined but never accessed.");
+        }
     }
 
     private void declare(Token name) {
@@ -97,6 +102,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         }
 
         scope.put(name.lexeme, false);
+
+        // record the creation of this variable - on access we'll remove it from the set
+        // later in endScope any vars still in the set are vars which were created but not accessed
+        Set<Token> vars = unaccessedVariables.peek();
+        vars.add(name);
     }
 
     private void define(Token name) {
@@ -111,7 +121,30 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         for (int i = scopes.size() - 1; i >= 0; i--) {
             if (scopes.get(i).containsKey(name.lexeme)) {
                 interpreter.resolve(expr, scopes.size() - 1 - i);
-                return;
+                break;
+            }
+        }
+
+        // since a variable was accessed, find the scope it came from and
+        // remove it from the unaccessedVariables set
+        for (int i = unaccessedVariables.size() - 1; i >= 0; i--) {
+            Set<Token> vars = unaccessedVariables.get(i);
+
+            // we can't just remove the Token, because it's a different instance. And
+            // I don't want to falsify Token::hashCode since it would have to lie about Token::line
+            // so we're going to manually find the matching token, and if non-null, remove it
+
+            Token match = null;
+            for (Token t : vars) {
+                if (t.lexeme.equals(name.lexeme)) {
+                    match = t;
+                    break;
+                }
+            }
+
+            if (match != null) {
+                vars.remove(match);
+                break;
             }
         }
 

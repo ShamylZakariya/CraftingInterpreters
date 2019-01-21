@@ -1,20 +1,18 @@
-fun hasWhile() {
-    var i = 3;
-    while(true) {
-        if (i <= 0) {
-            break;
-        }
+fun foo() {
+    var a = 1;
+    print a;
+}
 
-        (fun(){
-            break;
-        })();
+fun foo_2() {
+    var b = 1;
 
-        i = i - 1;
+    fun inside() {
+        //b = b+1;
+        //print b;
     }
+
+    inside();
 }
 
-fun noWhile() {
-    break;
-}
-
-break;
+foo();
+foo_2();
