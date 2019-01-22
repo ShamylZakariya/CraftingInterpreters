@@ -10,9 +10,36 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         LAMBDA
     }
 
+    private enum VariableState {
+        DECLARED,
+        DEFINED,
+        ACCESSED
+    }
+
+    private class VariableInfo {
+        private VariableState state;
+        private final Token name;
+
+        public VariableInfo(Token name, VariableState state) {
+            this.name = name;
+            this.state = state;
+        }
+
+        public Token getName() {
+            return name;
+        }
+
+        public VariableState getState() {
+            return state;
+        }
+
+        public void setState(VariableState state) {
+            this.state = state;
+        }
+    }
+
     private final Interpreter interpreter;
-    private final Stack<Map<String, Boolean>> scopes = new Stack();
-    private final Stack<Set<Token>> unaccessedVariables = new Stack();
+    private final Stack<Map<String, VariableInfo>> scopes = new Stack();
     private FunctionType currentFunction = FunctionType.NONE;
     private boolean whileStatementPresent = false;
 
@@ -76,16 +103,15 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private void beginScope() {
         scopes.push(new HashMap<>());
-        unaccessedVariables.push(new HashSet<>());
     }
 
     private void endScope() {
-        scopes.pop();
-
-        // check if we have any variables with read count of zero and report error
-        Set<Token> unaccessedVariablesForScope = unaccessedVariables.pop();
-        for (Token t : unaccessedVariablesForScope) {
-            Lox.error(t, "Variable \"" + t.lexeme + "\" was defined but never accessed.");
+        Map<String, VariableInfo> info = scopes.pop();
+        for(String name : info.keySet()) {
+            VariableInfo vi = info.get(name);
+            if (vi.state != VariableState.ACCESSED) {
+                Lox.error(vi.name, "Variable \"" + vi.name.lexeme + "\" was defined but never accessed.");
+            }
         }
     }
 
@@ -95,18 +121,13 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         }
 
         // by declaring a var, we say "it exists, but hasn't been written to, yet"
-        Map<String, Boolean> scope = scopes.peek();
+        Map<String, VariableInfo> scope = scopes.peek();
 
         if (scope.containsKey(name.lexeme)) {
             Lox.error(name, "Variable with this name already declared in this scope.");
         }
 
-        scope.put(name.lexeme, false);
-
-        // record the creation of this variable - on access we'll remove it from the set
-        // later in endScope any vars still in the set are vars which were created but not accessed
-        Set<Token> vars = unaccessedVariables.peek();
-        vars.add(name);
+        scope.put(name.lexeme, new VariableInfo(name, VariableState.DECLARED));
     }
 
     private void define(Token name) {
@@ -114,36 +135,15 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             return;
         }
         // now we save that the var is defined and ready to go
-        scopes.peek().put(name.lexeme, true);
+        scopes.peek().get(name.lexeme).setState(VariableState.DEFINED);
     }
 
     private void resolveLocal(Expr expr, Token name) {
         for (int i = scopes.size() - 1; i >= 0; i--) {
-            if (scopes.get(i).containsKey(name.lexeme)) {
+            VariableInfo info = scopes.get(i).get(name.lexeme);
+            if (info != null) {
+                info.setState(VariableState.ACCESSED);
                 interpreter.resolve(expr, scopes.size() - 1 - i);
-                break;
-            }
-        }
-
-        // since a variable was accessed, find the scope it came from and
-        // remove it from the unaccessedVariables set
-        for (int i = unaccessedVariables.size() - 1; i >= 0; i--) {
-            Set<Token> vars = unaccessedVariables.get(i);
-
-            // we can't just remove the Token, because it's a different instance. And
-            // I don't want to falsify Token::hashCode since it would have to lie about Token::line
-            // so we're going to manually find the matching token, and if non-null, remove it
-
-            Token match = null;
-            for (Token t : vars) {
-                if (t.lexeme.equals(name.lexeme)) {
-                    match = t;
-                    break;
-                }
-            }
-
-            if (match != null) {
-                vars.remove(match);
                 break;
             }
         }
@@ -300,8 +300,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitVariableExpr(Expr.Variable expr) {
-        if (!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
-            Lox.error(expr.name, "Cannot read local variable in its own initializer");
+        if (!scopes.isEmpty()) {
+            VariableInfo info = scopes.peek().get(expr.name.lexeme);
+            if (info != null && info.getState() == VariableState.DECLARED) {
+                Lox.error(expr.name, "Cannot read local variable in its own initializer");
+            }
         }
 
         resolveLocal(expr, expr.name);

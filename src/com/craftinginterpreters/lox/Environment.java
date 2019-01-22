@@ -34,10 +34,16 @@ public class Environment {
         throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
     }
 
-    Object getAt(int distance, String name) {
+    Object getAt(int distance, Token name) {
         Environment anc = ancestor(distance);
-        assert anc.values.containsKey(name) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
-        return anc.values.get(name);
+        assert anc.values.containsKey(name.lexeme) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
+        Object value = anc.values.get(name.lexeme);
+
+        if (value == UNASSIGNED_SENTINEL) {
+            throw new RuntimeError(name, "Attempt to access uninitialized/unassigned variable.");
+        }
+
+        return value;
     }
 
     void define(String name, Object value) {
