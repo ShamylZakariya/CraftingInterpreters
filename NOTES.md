@@ -16,4 +16,6 @@ Per the challenge notes, how to handle a `fun(){};` in the context of a statemen
 What about `(fun(){...})();` - this should be allowed to work.
 
 ## Chapter 11
-The Resolver looks like the right place to throw an error if a break statement occurs without an enclosing while loop. My current implementation will break out of nested function calls to the closest while loop, which is neat, but bad. I should copy Resolver::resolveFunction's approach to keep track of whether the current function context has a while loop in it.  
+Q3: The Resolver looks like the right place to throw an error if a break statement occurs without an enclosing while loop. My current implementation will break out of nested function calls to the closest while loop, which is neat, but bad. I should copy Resolver::resolveFunction's approach to keep track of whether the current function context has a while loop in it.  
+
+Q4: Where to store the index when keeping variables in an array instead of a hashmap? Looks like `Interpreter::locals` `Map<Expr,Integer>` would be a good fit. But we should store `class VarInfo { int depth; int offset; }`
