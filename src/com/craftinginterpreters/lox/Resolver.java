@@ -34,10 +34,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             return state;
         }
 
-        public VariableState setState(VariableState state) {
-            VariableState previousState = this.state;
+        public void setState(VariableState state) {
             this.state = state;
-            return previousState;
         }
     }
 
@@ -112,8 +110,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         Map<String, VariableInfo> info = scopes.pop();
         for(String name : info.keySet()) {
             VariableInfo vi = info.get(name);
-            if (vi.state != VariableState.ACCESSED) {
-                Lox.error(vi.name, "Variable \"" + vi.name.lexeme + "\" was defined but never accessed.");
+            if (vi.getState() != VariableState.ACCESSED) {
+                Lox.error(vi.getName(), "Variable \"" + vi.getName().lexeme + "\" was defined but never accessed.");
             }
         }
     }
