@@ -110,8 +110,17 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         Map<String, VariableInfo> info = scopes.pop();
         for(String name : info.keySet()) {
             VariableInfo vi = info.get(name);
-            if (vi.getState() != VariableState.ACCESSED) {
-                Lox.error(vi.getName(), "Variable \"" + vi.getName().lexeme + "\" was defined but never accessed.");
+
+            // TODO: We may want to track the type of variable. If it's a value (string, number, etc) report an error if it's never used. But if it's a class, being defined but not accessed should be fine.
+            /* implementation note:
+                we'd want to store the type of variable (value / class) in VariableState and if it's a value
+                we could be aggressive and say if (state != ACCESSED); whereas if it's a class we'd say (state != ASSIGNED)
+             */
+            VariableState state = vi.getState();
+            if (state == VariableState.DEFINED) {
+                Lox.error(vi.getName(), "Variable \"" + vi.getName().lexeme + "\" was defined but never assigned to.");
+            } else if (state != VariableState.ACCESSED) {
+                Lox.error(vi.getName(), "Variable \"" + vi.getName().lexeme + "\" was assigned to but never accessed.");
             }
         }
     }
