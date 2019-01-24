@@ -1,14 +1,14 @@
 package com.craftinginterpreters.lox;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Environment {
-
-    private static final Object UNASSIGNED_SENTINEL = new Object();
-
     private final Environment enclosing;
-    private final Map<String, Object> values = new HashMap<>();
+    private final Map<String, Object> valuesByName = new HashMap<>();
+    private final List<Object> valuesList = new ArrayList<>();
 
     Environment() {
         enclosing = null;
@@ -19,12 +19,8 @@ public class Environment {
     }
 
     Object get(Token name) {
-        if (values.containsKey(name.lexeme)) {
-            Object value = values.get(name.lexeme);
-            if (value == UNASSIGNED_SENTINEL) {
-                throw new RuntimeError(name, "Attempt to access uninitialized/unassigned variable.");
-            }
-            return value;
+        if (valuesByName.containsKey(name.lexeme)) {
+            return valuesByName.get(name.lexeme);
         }
 
         if (enclosing != null) {
@@ -35,19 +31,21 @@ public class Environment {
     }
 
     Object getAt(int distance, Token name) {
+        System.out.println("Environment::getAt - using name-based variable lookup! OH NO!");
         Environment anc = ancestor(distance);
-        assert anc.values.containsKey(name.lexeme) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
-        Object value = anc.values.get(name.lexeme);
-
-        if (value == UNASSIGNED_SENTINEL) {
-            throw new RuntimeError(name, "Attempt to access uninitialized/unassigned variable.");
-        }
-
-        return value;
+        assert anc.valuesByName.containsKey(name.lexeme) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
+        return anc.valuesByName.get(name.lexeme);
     }
 
-    void define(String name, Object value) {
-        values.put(name, value != null ? value : UNASSIGNED_SENTINEL);
+    Object getAt(int distance, int offset) {
+        Environment anc = ancestor(distance);
+        return anc.valuesList.get(offset);
+    }
+
+    int define(String name, Object value) {
+        valuesByName.put(name, value);
+        valuesList.add(value );
+        return valuesList.size() - 1;
     }
 
     Environment ancestor(int distance) {
@@ -59,8 +57,8 @@ public class Environment {
     }
 
     void assign(Token name, Object value) {
-        if (values.containsKey(name.lexeme)) {
-            values.put(name.lexeme, value);
+        if (valuesByName.containsKey(name.lexeme)) {
+            valuesByName.put(name.lexeme, value);
             return;
         }
 
@@ -73,8 +71,11 @@ public class Environment {
     }
 
     void assignAt(int distance, Token name, Object value) {
-        ancestor(distance).values.put(name.lexeme, value);
+        System.out.println("Environment::assignAt - using name-based variable lookup! OH NO!");
+        ancestor(distance).valuesByName.put(name.lexeme, value);
     }
 
-
+    void assignAt(int distance, int offset, Object value) {
+        ancestor(distance).valuesList.set(offset, value);
+    }
 }

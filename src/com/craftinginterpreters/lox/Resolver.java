@@ -13,6 +13,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private enum VariableState {
         DECLARED,
         DEFINED,
+        ASSIGNED,
         ACCESSED
     }
 
@@ -72,7 +73,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         beginScope();
         for (Token param : function.params) {
             declare(param);
-            define(param);
+            define(param, true);
         }
         resolve(function.body);
         endScope();
@@ -92,7 +93,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         beginScope();
         for (Token param : lambda.params) {
             declare(param);
-            define(param);
+            define(param, true);
         }
         resolve(lambda.body);
         endScope();
@@ -109,8 +110,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         Map<String, VariableInfo> info = scopes.pop();
         for(String name : info.keySet()) {
             VariableInfo vi = info.get(name);
-            if (vi.state != VariableState.ACCESSED) {
-                Lox.error(vi.name, "Variable \"" + vi.name.lexeme + "\" was defined but never accessed.");
+            if (vi.getState() != VariableState.ACCESSED) {
+                Lox.error(vi.getName(), "Variable \"" + vi.getName().lexeme + "\" was defined but never accessed.");
             }
         }
     }
@@ -130,12 +131,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         scope.put(name.lexeme, new VariableInfo(name, VariableState.DECLARED));
     }
 
-    private void define(Token name) {
+    private void define(Token name, boolean assignedTo) {
         if (scopes.isEmpty()) {
             return;
         }
         // now we save that the var is defined and ready to go
-        scopes.peek().get(name.lexeme).setState(VariableState.DEFINED);
+        scopes.peek().get(name.lexeme).setState(assignedTo ? VariableState.ASSIGNED : VariableState.DEFINED);
     }
 
     private void resolveLocal(Expr expr, Token name) {
@@ -178,7 +179,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
         declare(stmt.name);
-        define(stmt.name);
+        define(stmt.name, true);
 
         resolveFunction(stmt, FunctionType.FUNCTION);
         return null;
@@ -232,8 +233,10 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         declare(stmt.name);
         if (stmt.initializer != null) {
             resolve(stmt.initializer);
+            define(stmt.name, true);
+        } else {
+            define(stmt.name, false);
         }
-        define(stmt.name);
         return null;
     }
 
@@ -302,8 +305,19 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public Void visitVariableExpr(Expr.Variable expr) {
         if (!scopes.isEmpty()) {
             VariableInfo info = scopes.peek().get(expr.name.lexeme);
-            if (info != null && info.getState() == VariableState.DECLARED) {
-                Lox.error(expr.name, "Cannot read local variable in its own initializer");
+            if (info != null) {
+                switch(info.getState()) {
+                    case DECLARED:
+                        Lox.error(expr.name, "Cannot read local variable in its own initializer.");
+                        break;
+                    case DEFINED:
+                        Lox.error(expr.name, "Cannot read from unassigned local variable.");
+                        break;
+                    case ASSIGNED:
+                        break;
+                    case ACCESSED:
+                        break;
+                }
             }
         }
 
