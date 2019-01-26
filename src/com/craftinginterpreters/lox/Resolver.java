@@ -20,10 +20,16 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private class VariableInfo {
         private VariableState state;
         private final Token name;
+        private final int offset;
 
-        public VariableInfo(Token name, VariableState state) {
+        public VariableInfo(Token name, VariableState state, int offset) {
             this.name = name;
             this.state = state;
+            this.offset = offset;
+        }
+
+        public int getOffset() {
+            return offset;
         }
 
         public Token getName() {
@@ -137,7 +143,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             Lox.error(name, "Variable with this name already declared in this scope.");
         }
 
-        scope.put(name.lexeme, new VariableInfo(name, VariableState.DECLARED));
+        int offset = scope.size();
+        scope.put(name.lexeme, new VariableInfo(name, VariableState.DECLARED, offset));
     }
 
     private void define(Token name, boolean assignedTo) {
@@ -153,7 +160,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             VariableInfo info = scopes.get(i).get(name.lexeme);
             if (info != null) {
                 info.setState(VariableState.ACCESSED);
-                interpreter.resolve(expr, scopes.size() - 1 - i);
+                int distance = scopes.size() - 1 - i;
+                interpreter.resolve(expr, distance, info.offset);
                 break;
             }
         }

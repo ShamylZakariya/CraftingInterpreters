@@ -1,18 +1,40 @@
-fun foo() {
-    var a = 1;
-    print a;
+fun caller(fn) {
+    fn();
 }
 
-fun foo_2() {
-    var b = 1;
+fun caller_2(fn, value) {
+    fn(value);
+}
 
-    fun inside() {
-        //b = b+1;
-        //print b;
+caller(fun() {
+    print "lambda!";
+});
+
+caller_2(fun(v){
+    print "lambda " + v + "!";
+}, "hello");
+
+var a = fun() {
+    print "called lambda assigned to var";
+};
+
+print a;
+a();
+
+caller(a);
+
+fun thrice(fn) {
+    for (var i = 1; i <= 3; i = i+1) {
+        fn(i);
     }
-
-    inside();
 }
 
-foo();
-foo_2();
+fun printer(i) {
+    print "printer " + i;
+}
+
+thrice(printer);
+
+thrice(fun(i) {
+    print "lambda! " + i;
+});
