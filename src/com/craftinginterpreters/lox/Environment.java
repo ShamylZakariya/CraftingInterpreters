@@ -31,7 +31,6 @@ public class Environment {
     }
 
     Object getAt(int distance, Token name) {
-        System.out.println("Environment::getAt - Looking up " + name.lexeme + " by name...");
         Environment anc = ancestor(distance);
         assert anc.valuesByName.containsKey(name.lexeme) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
         return anc.valuesByName.get(name.lexeme);
