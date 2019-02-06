@@ -1,8 +1,6 @@
 package com.craftinginterpreters.lox;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class Environment {
@@ -30,9 +28,13 @@ public class Environment {
     }
 
     Object getAt(int distance, Token name) {
+        return getAt(distance, name.lexeme);
+    }
+
+    Object getAt(int distance, String name) {
         Environment anc = ancestor(distance);
-        assert anc.values.containsKey(name.lexeme) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
-        return anc.values.get(name.lexeme);
+        assert anc.values.containsKey(name) : "Interpreter and Resolver out of sync - interpreter's environment should have variable" + name;
+        return anc.values.get(name);
     }
 
     void define(String name, Object value) {

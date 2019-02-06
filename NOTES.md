@@ -24,3 +24,5 @@ Q3: TO make resolver report an error if a local variable is never used. `scopes`
 
 Q4: Where to store the index when keeping variables in an array instead of a hashmap? Looks like `Interpreter::locals` `Map<Expr,Integer>` would be a good fit. But we should store `class VarInfo { int depth; int offset; }`
     - `Interpreter::resolve` - I need to perform a defineAt() type call on the appropriate Environment to get an offset.
+    
+ 

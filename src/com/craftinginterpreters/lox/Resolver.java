@@ -1,13 +1,23 @@
 package com.craftinginterpreters.lox;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Stack;
 
 public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private enum FunctionType {
         NONE,
         FUNCTION,
+        INITIALIZER,
+        METHOD,
         LAMBDA
+    }
+
+    private enum ClassType {
+        NONE,
+        CLASS
     }
 
     private enum VariableState {
@@ -42,6 +52,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Interpreter interpreter;
     private final Stack<Map<String, VariableInfo>> scopes = new Stack();
     private FunctionType currentFunction = FunctionType.NONE;
+    private ClassType currentClass = ClassType.NONE;
     private boolean whileStatementPresent = false;
 
     public Resolver(Interpreter interpreter) {
@@ -108,7 +119,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private void endScope() {
         Map<String, VariableInfo> info = scopes.pop();
-        for(String name : info.keySet()) {
+        for (String name : info.keySet()) {
             VariableInfo vi = info.get(name);
 
             // TODO: We may want to track the type of variable. If it's a value (string, number, etc) report an error if it's never used. But if it's a class, being defined but not accessed should be fine.
@@ -170,6 +181,37 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitClassStmt(Stmt.Class stmt) {
+        ClassType enclosingClass = currentClass;
+        currentClass = ClassType.CLASS;
+
+        declare(stmt.name);
+        define(stmt.name, true);
+
+        beginScope();
+
+        // since "this" is a magic var, we will just declare it "ACCESSED" so
+        // we don't get any warnings if it's declared but not used
+        scopes.peek().put("this",
+                new VariableInfo(
+                        new Token(TokenType.THIS, "this", null, 0),
+                        VariableState.ACCESSED));
+
+        for (Stmt.Function method : stmt.methods) {
+            FunctionType declaration = FunctionType.METHOD;
+            if (method.name.lexeme.equals("init")) {
+                declaration = FunctionType.INITIALIZER;
+            }
+            resolveFunction(method, declaration);
+        }
+
+        endScope();
+
+        currentClass = enclosingClass;
+        return null;
+    }
+
+    @Override
     public Void visitBreakStmt(Stmt.Break stmt) {
 
         if (!whileStatementPresent) {
@@ -219,6 +261,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         }
 
         if (stmt.value != null) {
+
+            // if this is an initializer method, disallow value returns
+            if (currentFunction == FunctionType.INITIALIZER) {
+                Lox.error(stmt.keyword, "Cannot return a value from an initializer.");
+            }
+
             resolve(stmt.value);
         }
         return null;
@@ -273,6 +321,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitGetExpr(Expr.Get expr) {
+        resolve(expr.object);
+        return null;
+    }
+
+    @Override
     public Void visitGroupingExpr(Expr.Grouping expr) {
         resolve(expr.expression);
         return null;
@@ -297,6 +351,24 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitSetExpr(Expr.Set expr) {
+        resolve(expr.value);
+        resolve(expr.object);
+        return null;
+    }
+
+    @Override
+    public Void visitThisExpr(Expr.This expr) {
+        if (currentClass == ClassType.NONE) {
+            Lox.error(expr.keyword, "Cannot use 'this' outside of a class.");
+            return null;
+        }
+
+        resolveLocal(expr, expr.keyword);
+        return null;
+    }
+
+    @Override
     public Void visitTernaryExpr(Expr.Ternary expr) {
         resolve(expr.condition);
         resolve(expr.thenBranch);
@@ -315,7 +387,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         if (!scopes.isEmpty()) {
             VariableInfo info = scopes.peek().get(expr.name.lexeme);
             if (info != null) {
-                switch(info.getState()) {
+                switch (info.getState()) {
                     case DECLARED:
                         Lox.error(expr.name, "Cannot read local variable in its own initializer.");
                         break;
