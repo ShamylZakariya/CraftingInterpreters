@@ -7,6 +7,9 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -116,7 +119,10 @@ public class LoxTest {
 
     private void runFile(String pathToLoxFile) {
         try {
-            Lox.runFile(pathToLoxFile);
+
+            byte[] bytes = Files.readAllBytes(Paths.get(pathToLoxFile));
+            Lox.run(new String(bytes, Charset.defaultCharset()));
+
         } catch (IOException e) {
             fail(e.toString());
         }
