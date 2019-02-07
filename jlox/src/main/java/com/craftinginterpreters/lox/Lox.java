@@ -10,7 +10,7 @@ import java.util.List;
 
 public class Lox {
 
-    private static final Interpreter interpreter = new Interpreter();
+    static Interpreter interpreter = new Interpreter();
     static boolean hadError = false;
     static boolean hadRuntimeError = false;
     static boolean isRepl = false;
@@ -24,6 +24,10 @@ public class Lox {
         } else {
             runPrompt();
         }
+    }
+
+    static void reset() {
+        interpreter = new Interpreter();
     }
 
     static void error(int line, String message) {
@@ -72,7 +76,7 @@ public class Lox {
         }
     }
 
-    private static void run(String source) {
+    static void run(String source) {
         Scanner scanner = new Scanner(source);
         List<Token> tokens = scanner.scanTokens();
 

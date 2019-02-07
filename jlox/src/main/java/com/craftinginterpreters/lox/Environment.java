@@ -16,15 +16,23 @@ public class Environment {
     }
 
     Object get(Token name) {
-        if (values.containsKey(name.lexeme)) {
-            return values.get(name.lexeme);
+        Object value = get(name.lexeme);
+        if (value != null) {
+            return value;
+        }
+        throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
+    }
+
+    Object get(String name) {
+        if (values.containsKey(name)) {
+            return values.get(name);
         }
 
         if (enclosing != null) {
             return enclosing.get(name);
         }
 
-        throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
+        return null;
     }
 
     Object getAt(int distance, Token name) {

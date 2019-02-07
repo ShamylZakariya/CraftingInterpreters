@@ -7,12 +7,16 @@ import java.util.Map;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
-    final Environment globals = new Environment();
+    protected final Environment globals = new Environment();
     private Environment environment = globals;
     private final Map<Expr, Integer> locals = new HashMap<>();
 
     public Interpreter() {
-        globals.define("clock", new LoxCallable() {
+        this(null);
+    }
+
+    public Interpreter(Map<String,Object> globals) {
+        defineGlobal("clock", new LoxCallable() {
             @Override
             public int arity() {
                 return 0;
@@ -28,6 +32,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return "<native fn clock()>";
             }
         });
+
+        if (globals != null) {
+            for (Map.Entry<String,Object> operation : globals.entrySet()) {
+                defineGlobal(operation.getKey(), operation.getValue());
+            }    
+        }
+    }
+
+    void defineGlobal(String name, Object value) {
+        globals.define(name, value);
+    }
+
+    Object getValue(String name) {
+        return environment.get(name);
     }
 
     void interpret(List<Stmt> statements) {

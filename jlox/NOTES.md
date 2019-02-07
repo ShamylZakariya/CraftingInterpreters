@@ -1,5 +1,10 @@
 # NOTES
 
+## Testing
+I really ought to build some sort of tests for jlox. 
+    - ideally a jlox program could return a value (java object?)
+        - define a built-in function to export values to host?
+
 ## Chapter 10
 
 ### Lambda challenge notes
