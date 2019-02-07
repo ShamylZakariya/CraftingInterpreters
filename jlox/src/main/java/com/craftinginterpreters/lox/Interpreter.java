@@ -187,10 +187,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return !isEqual(left, right);
             case EQUAL_EQUAL:
                 return isEqual(left, right);
+            default:
+                throw new RuntimeError(expr.operator, "visitBinaryExpr on incorrect token.");
         }
-
-        // unreachable
-        return null;
     }
 
     @Override

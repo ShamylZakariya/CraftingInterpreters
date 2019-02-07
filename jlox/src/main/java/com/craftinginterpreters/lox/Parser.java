@@ -8,6 +8,8 @@ import static com.craftinginterpreters.lox.TokenType.*;
 
 class Parser {
     private static class ParseError extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
     }
 
     private final List<Token> tokens;
@@ -16,7 +18,6 @@ class Parser {
     Parser(List<Token> tokens) {
         this.tokens = tokens;
     }
-
 
     List<Stmt> parse() {
         List<Stmt> statements = new ArrayList<>();
@@ -49,7 +50,7 @@ class Parser {
         consume(LEFT_BRACE, "Expect '{' before class body.");
 
         List<Stmt.Function> methods = new ArrayList<>();
-        while(!check(RIGHT_BRACE) && !isAtEnd()) {
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
             methods.add(function("method"));
         }
 
@@ -111,31 +112,18 @@ class Parser {
         Stmt body = statement();
 
         /*
-            we're taking a for loop and desugaring it to a while loop
-
-            for (var i = 0; i < 10; i = i + 1) {
-                print i;
-            }
-
-            becomes:
-
-            {
-                var i = 0;
-                while(i < 10) {
-                    {
-                        print i;
-                    }
-                    i = i + 1;
-                }
-            }
-
+         * we're taking a for loop and desugaring it to a while loop
+         * 
+         * for (var i = 0; i < 10; i = i + 1) { print i; }
+         * 
+         * becomes:
+         * 
+         * { var i = 0; while(i < 10) { { print i; } i = i + 1; } }
+         * 
          */
 
         if (increment != null) {
-            body = new Stmt.Block(Arrays.asList(
-                    body,
-                    new Stmt.Expression(increment)
-            ));
+            body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
         }
 
         if (condition == null) {
@@ -248,8 +236,7 @@ class Parser {
         Expr expr = ternary();
         if (match(FUN)) {
             expr = lambda();
-        }
-        else if (match(EQUAL)) {
+        } else if (match(EQUAL)) {
             Token equals = previous();
             Expr value = assignment();
 
@@ -279,7 +266,8 @@ class Parser {
             } while (match(COMMA));
         }
         consume(RIGHT_PAREN, "Expect ')' after lambda parameters.");
-        // TODO: Opportunity to make a single-line lambda without braces - read a single expression if no LEFT_BRACE
+        // TODO: Opportunity to make a single-line lambda without braces - read a single
+        // expression if no LEFT_BRACE
         consume(LEFT_BRACE, "Expect '{' before lambda body.");
         List<Stmt> body = block();
         return new Expr.Lambda(parameters, body);
@@ -404,10 +392,14 @@ class Parser {
     }
 
     private Expr primary() {
-        if (match(FUN)) return lambda();
-        if (match(FALSE)) return new Expr.Literal(false);
-        if (match(TRUE)) return new Expr.Literal(true);
-        if (match(NIL)) return new Expr.Literal(null);
+        if (match(FUN))
+            return lambda();
+        if (match(FALSE))
+            return new Expr.Literal(false);
+        if (match(TRUE))
+            return new Expr.Literal(true);
+        if (match(NIL))
+            return new Expr.Literal(null);
 
         if (match(NUMBER, STRING)) {
             return new Expr.Literal(previous().literal);
@@ -431,7 +423,8 @@ class Parser {
     }
 
     private Token consume(TokenType type, String message) {
-        if (check(type)) return advance();
+        if (check(type))
+            return advance();
         throw error(peek(), message);
     }
 
@@ -449,15 +442,17 @@ class Parser {
                 return;
             }
             switch (peek().type) {
-                case CLASS:
-                case FUN:
-                case VAR:
-                case FOR:
-                case IF:
-                case WHILE:
-                case PRINT:
-                case RETURN:
-                    return;
+            case CLASS:
+            case FUN:
+            case VAR:
+            case FOR:
+            case IF:
+            case WHILE:
+            case PRINT:
+            case RETURN:
+                return;
+            default:
+                break;
             }
             advance();
         }
@@ -475,7 +470,8 @@ class Parser {
     }
 
     private boolean check(TokenType type) {
-        if (isAtEnd()) return false;
+        if (isAtEnd())
+            return false;
         return peek().type == type;
     }
 

@@ -50,7 +50,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     private final Interpreter interpreter;
-    private final Stack<Map<String, VariableInfo>> scopes = new Stack();
+    private final Stack<Map<String, VariableInfo>> scopes = new Stack<>();
     private FunctionType currentFunction = FunctionType.NONE;
     private ClassType currentClass = ClassType.NONE;
     private boolean whileStatementPresent = false;
@@ -114,7 +114,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     private void beginScope() {
-        scopes.push(new HashMap<>());
+        scopes.push(new HashMap<String,VariableInfo>());
     }
 
     private void endScope() {
