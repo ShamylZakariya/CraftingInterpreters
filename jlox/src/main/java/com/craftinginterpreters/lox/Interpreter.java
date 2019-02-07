@@ -15,7 +15,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         this(null);
     }
 
-    public Interpreter(Map<String,Object> globals) {
+    public Interpreter(Map<String, Object> globals) {
         defineGlobal("clock", new LoxCallable() {
             @Override
             public int arity() {
@@ -34,9 +34,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         });
 
         if (globals != null) {
-            for (Map.Entry<String,Object> operation : globals.entrySet()) {
+            for (Map.Entry<String, Object> operation : globals.entrySet()) {
                 defineGlobal(operation.getKey(), operation.getValue());
-            }    
+            }
         }
     }
 
@@ -73,6 +73,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Void visitClassStmt(Stmt.Class stmt) {
         environment.define(stmt.name.lexeme, null);
 
+        Map<String, LoxFunction> properties = new HashMap<>();
+        for (Stmt.Function property : stmt.properties) {
+            LoxFunction propertyFunction = new LoxFunction(property, environment, false);
+            properties.put(property.name.lexeme, propertyFunction);
+        }
+
         Map<String, LoxFunction> methods = new HashMap<>();
         for (Stmt.Function method : stmt.methods) {
             boolean isClassInitializer = method.name.lexeme.equals("init");
@@ -80,13 +86,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             methods.put(method.name.lexeme, function);
         }
 
-        Map<String,LoxFunction> classMethods = new HashMap<>();
+        Map<String, LoxFunction> classMethods = new HashMap<>();
         for (Stmt.Function classMethod : stmt.classMethods) {
             LoxFunction function = new LoxFunction(classMethod, environment, false);
             classMethods.put(classMethod.name.lexeme, function);
         }
 
-        LoxClass klass = new LoxClass(stmt.name.lexeme, methods, classMethods);
+        LoxClass klass = new LoxClass(stmt.name.lexeme, properties, methods, classMethods);
         environment.assign(stmt.name, klass);
         return null;
     }
@@ -175,44 +181,44 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object right = evaluate(expr.right);
 
         switch (expr.operator.type) {
-            case MINUS:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left - (double) right;
-            case SLASH:
-                checkNumberOperands(expr.operator, left, right);
-                if ((double) right == 0) {
-                    throw new RuntimeError(expr.operator, "Attempted divide by zero");
-                }
-                return (double) left / (double) right;
-            case STAR:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left * (double) right;
-            case PLUS:
-                if (left instanceof Double && right instanceof Double) {
-                    return (double) left + (double) right;
-                }
-                if (left instanceof String) {
-                    return (String) left + stringify(right);
-                }
-                throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings");
-            case GREATER:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left > (double) right;
-            case GREATER_EQUAL:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left >= (double) right;
-            case LESS:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left < (double) right;
-            case LESS_EQUAL:
-                checkNumberOperands(expr.operator, left, right);
-                return (double) left <= (double) right;
-            case BANG_EQUAL:
-                return !isEqual(left, right);
-            case EQUAL_EQUAL:
-                return isEqual(left, right);
-            default:
-                throw new RuntimeError(expr.operator, "visitBinaryExpr on incorrect token.");
+        case MINUS:
+            checkNumberOperands(expr.operator, left, right);
+            return (double) left - (double) right;
+        case SLASH:
+            checkNumberOperands(expr.operator, left, right);
+            if ((double) right == 0) {
+                throw new RuntimeError(expr.operator, "Attempted divide by zero");
+            }
+            return (double) left / (double) right;
+        case STAR:
+            checkNumberOperands(expr.operator, left, right);
+            return (double) left * (double) right;
+        case PLUS:
+            if (left instanceof Double && right instanceof Double) {
+                return (double) left + (double) right;
+            }
+            if (left instanceof String) {
+                return (String) left + stringify(right);
+            }
+            throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings");
+        case GREATER:
+            checkNumberOperands(expr.operator, left, right);
+            return (double) left > (double) right;
+        case GREATER_EQUAL:
+            checkNumberOperands(expr.operator, left, right);
+            return (double) left >= (double) right;
+        case LESS:
+            checkNumberOperands(expr.operator, left, right);
+            return (double) left < (double) right;
+        case LESS_EQUAL:
+            checkNumberOperands(expr.operator, left, right);
+            return (double) left <= (double) right;
+        case BANG_EQUAL:
+            return !isEqual(left, right);
+        case EQUAL_EQUAL:
+            return isEqual(left, right);
+        default:
+            throw new RuntimeError(expr.operator, "visitBinaryExpr on incorrect token.");
         }
     }
 
@@ -232,7 +238,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         LoxCallable function = (LoxCallable) callee;
 
         if (arguments.size() != function.arity()) {
-            throw new RuntimeError(expr.paren, "Expected " + function.arity() + " arguments but got " + arguments.size());
+            throw new RuntimeError(expr.paren,
+                    "Expected " + function.arity() + " arguments but got " + arguments.size());
         }
 
         return function.call(this, arguments);
@@ -242,6 +249,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitGetExpr(Expr.Get expr) {
         Object object = evaluate(expr.object);
         if (object instanceof LoxInstance) {
+
+            LoxFunction property = ((LoxInstance) object).getProperty(expr.name);
+            if (property != null) {
+                return property.call(this, null); // properties have no arguments
+            }
+
             return ((LoxInstance) object).get(expr.name);
         }
 
@@ -267,9 +280,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitLogicalExpr(Expr.Logical expr) {
         Object left = evaluate(expr.left);
         if (expr.operator.type == TokenType.OR) {
-            if (isTruthy(left)) return left;
+            if (isTruthy(left))
+                return left;
         } else {
-            if (!isTruthy(left)) return left;
+            if (!isTruthy(left))
+                return left;
         }
 
         return evaluate(expr.right);
@@ -305,13 +320,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitUnaryExpr(Expr.Unary expr) {
         Object right = evaluate(expr.right);
         switch (expr.operator.type) {
-            case BANG:
-                return !isTruthy(right);
-            case MINUS:
-                checkNumberOperand(expr.operator, right);
-                return -(double) right;
-            default:
-                break;
+        case BANG:
+            return !isTruthy(right);
+        case MINUS:
+            checkNumberOperand(expr.operator, right);
+            return -(double) right;
+        default:
+            break;
         }
 
         // unreachable
@@ -396,12 +411,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     private void checkNumberOperand(Token operator, Object operand) {
-        if (operand instanceof Double) return;
+        if (operand instanceof Double)
+            return;
         throw new RuntimeError(operator, "Operand must be a number.");
     }
 
     private void checkNumberOperands(Token operator, Object left, Object right) {
-        if (left instanceof Double && right instanceof Double) return;
+        if (left instanceof Double && right instanceof Double)
+            return;
         throw new RuntimeError(operator, "Operands must be numbers.");
     }
 }

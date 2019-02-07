@@ -38,8 +38,9 @@ abstract class Stmt {
         final Token keyword;
     }
     static class Class extends Stmt {
-        Class(Token name, List<Stmt.Function> methods, List<Stmt.Function> classMethods) {
+        Class(Token name, List<Stmt.Function> properties, List<Stmt.Function> methods, List<Stmt.Function> classMethods) {
             this.name = name;
+            this.properties = properties;
             this.methods = methods;
             this.classMethods = classMethods;
         }
@@ -49,6 +50,7 @@ abstract class Stmt {
         }
 
         final Token name;
+        final List<Stmt.Function> properties;
         final List<Stmt.Function> methods;
         final List<Stmt.Function> classMethods;
     }
@@ -64,10 +66,11 @@ abstract class Stmt {
         final Expr expression;
     }
     static class Function extends Stmt {
-        Function(Token name, List<Token> params, List<Stmt> body) {
+        Function(Token name, List<Token> params, List<Stmt> body, boolean isProperty) {
             this.name = name;
             this.params = params;
             this.body = body;
+            this.isProperty = isProperty;
         }
 
         <R> R accept(Visitor<R> visitor) {
@@ -77,6 +80,7 @@ abstract class Stmt {
         final Token name;
         final List<Token> params;
         final List<Stmt> body;
+        final boolean isProperty;
     }
     static class If extends Stmt {
         If(Expr condition, Stmt thenBranch, Stmt elseBranch) {

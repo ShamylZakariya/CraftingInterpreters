@@ -5,12 +5,14 @@ import java.util.Map;
 
 public class LoxClass extends LoxInstance implements LoxCallable {
     final String name;
+    private final Map<String, LoxFunction> properties;
     private final Map<String, LoxFunction> methods;
     private final Map<String, LoxFunction> classMethods;
 
-    public LoxClass(String name, Map<String, LoxFunction> methods, Map<String,LoxFunction> classMethods) {
+    public LoxClass(String name, Map<String, LoxFunction> properties, Map<String, LoxFunction> methods, Map<String,LoxFunction> classMethods) {
         super();
         this.name = name;
+        this.properties = properties;
         this.methods = methods;
         this.classMethods = classMethods;
     }
@@ -23,6 +25,14 @@ public class LoxClass extends LoxInstance implements LoxCallable {
         }
 
         throw new RuntimeError(name, "Undefined class method '" + name.lexeme + "' on class '" + this.name + "'.");
+    }
+
+    LoxFunction findProperty(LoxInstance instance, String name) {
+        if (properties.containsKey(name)) {
+            return properties.get(name).bind(instance);
+        }
+
+        return null;
     }
 
     LoxFunction findMethod(LoxInstance instance, String name) {

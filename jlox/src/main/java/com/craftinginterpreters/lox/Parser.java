@@ -7,8 +7,29 @@ import java.util.List;
 import static com.craftinginterpreters.lox.TokenType.*;
 
 class Parser {
-    private static class ParseError extends RuntimeException {
 
+    private enum FunctionType {
+        FUNCTION {
+            @Override
+            public String toString() {
+                return "function";
+            }
+        },
+        METHOD {
+            @Override
+            public String toString() {
+                return "method";
+            }
+        },
+        CLASS_METHOD {
+            @Override
+            public String toString() {
+                return "class method";
+            }
+        }
+    }
+
+    private static class ParseError extends RuntimeException {
         private static final long serialVersionUID = 1L;
     }
 
@@ -33,7 +54,7 @@ class Parser {
                 return classDeclaration();
             }
             if (match(FUN)) {
-                return function("function");
+                return function(FunctionType.FUNCTION);
             }
             if (match(VAR)) {
                 return varDeclaration();
@@ -50,18 +71,24 @@ class Parser {
         consume(LEFT_BRACE, "Expect '{' before class body.");
 
         List<Stmt.Function> methods = new ArrayList<>();
+        List<Stmt.Function> properties = new ArrayList<>();
         List<Stmt.Function> classMethods = new ArrayList<>();
         while (!check(RIGHT_BRACE) && !isAtEnd()) {
             if (check(CLASS)) {
                 consume(CLASS, "Expect 'class' declaration for static class methods");
-                classMethods.add(function("class method"));
+                classMethods.add(function(FunctionType.CLASS_METHOD));
             } else {
-                methods.add(function("method"));
+                Stmt.Function fn = function(FunctionType.METHOD);
+                if (fn.isProperty) {
+                    properties.add(fn);
+                } else {
+                    methods.add(fn);
+                }
             }
         }
 
         consume(RIGHT_BRACE, "Expect '}' after class body.");
-        return new Stmt.Class(name, methods, classMethods);
+        return new Stmt.Class(name, properties, methods, classMethods);
     }
 
     private Stmt statement() {
@@ -207,22 +234,35 @@ class Parser {
         return new Stmt.Expression(expr);
     }
 
-    private Stmt.Function function(String kind) {
-        Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
-        consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+    private Stmt.Function function(FunctionType kind) {
+        boolean isProperty = false;
         List<Token> parameters = new ArrayList<>();
-        if (!check(RIGHT_PAREN)) {
-            do {
-                if (parameters.size() >= 8) {
-                    error(peek(), "Cannot have more than 8 parameters.");
-                }
-                parameters.add(consume(IDENTIFIER, "Expect parameter name."));
-            } while (match(COMMA));
+        Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
+
+        if (check(LEFT_PAREN)) {
+            consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+            if (!check(RIGHT_PAREN)) {
+                do {
+                    if (parameters.size() >= 8) {
+                        error(peek(), "Cannot have more than 8 parameters.");
+                    }
+                    parameters.add(consume(IDENTIFIER, "Expect parameter name."));
+                } while (match(COMMA));
+            }
+            consume(RIGHT_PAREN, "Expect ')' after parameters.");
+        } else {
+            if (kind == FunctionType.FUNCTION) {
+                throw error(peek(), "Expect '(' after " + kind + " name.");
+            } else if (kind == FunctionType.CLASS_METHOD) {
+                throw error(peek(), "Class properties are not supported.");
+            }
+
+            // OK, this is a method on a class without () so it's a property
+            isProperty = true;
         }
-        consume(RIGHT_PAREN, "Expect ')' after parameters.");
         consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
         List<Stmt> body = block();
-        return new Stmt.Function(name, parameters, body);
+        return new Stmt.Function(name, parameters, body, isProperty);
     }
 
     private List<Stmt> block() {

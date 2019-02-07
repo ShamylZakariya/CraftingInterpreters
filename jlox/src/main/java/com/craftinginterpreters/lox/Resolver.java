@@ -8,24 +8,15 @@ import java.util.Stack;
 public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private enum FunctionType {
-        NONE,
-        FUNCTION,
-        INITIALIZER,
-        CLASS_METHOD,
-        METHOD,
-        LAMBDA
+        NONE, FUNCTION, INITIALIZER, CLASS_METHOD, METHOD, PROPERTY, LAMBDA
     }
 
     private enum ClassType {
-        NONE,
-        CLASS
+        NONE, CLASS
     }
 
     private enum VariableState {
-        DECLARED,
-        DEFINED,
-        ASSIGNED,
-        ACCESSED
+        DECLARED, DEFINED, ASSIGNED, ACCESSED
     }
 
     private class VariableInfo {
@@ -115,7 +106,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     private void beginScope() {
-        scopes.push(new HashMap<String,VariableInfo>());
+        scopes.push(new HashMap<String, VariableInfo>());
     }
 
     private void endScope() {
@@ -123,10 +114,13 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         for (String name : info.keySet()) {
             VariableInfo vi = info.get(name);
 
-            // TODO: We may want to track the type of variable. If it's a value (string, number, etc) report an error if it's never used. But if it's a class, being defined but not accessed should be fine.
-            /* implementation note:
-                we'd want to store the type of variable (value / class) in VariableState and if it's a value
-                we could be aggressive and say if (state != ACCESSED); whereas if it's a class we'd say (state != ASSIGNED)
+            // TODO: We may want to track the type of variable. If it's a value (string,
+            // number, etc) report an error if it's never used. But if it's a class, being
+            // defined but not accessed should be fine.
+            /*
+             * implementation note: we'd want to store the type of variable (value / class)
+             * in VariableState and if it's a value we could be aggressive and say if (state
+             * != ACCESSED); whereas if it's a class we'd say (state != ASSIGNED)
              */
             VariableState state = vi.getState();
             if (state == VariableState.DEFINED) {
@@ -193,10 +187,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
         // since "this" is a magic var, we will just declare it "ACCESSED" so
         // we don't get any warnings if it's declared but not used
-        scopes.peek().put("this",
-                new VariableInfo(
-                        new Token(TokenType.THIS, "this", null, 0),
-                        VariableState.ACCESSED));
+        scopes.peek().put("this", new VariableInfo(new Token(TokenType.THIS, "this", null, 0), VariableState.ACCESSED));
+
+        for (Stmt.Function property : stmt.properties) {
+            FunctionType declaration = FunctionType.PROPERTY;
+            resolveFunction(property, declaration);
+        }
 
         for (Stmt.Function method : stmt.methods) {
             FunctionType declaration = FunctionType.METHOD;
@@ -210,7 +206,6 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             FunctionType declaration = FunctionType.CLASS_METHOD;
             resolveFunction(classMethod, declaration);
         }
-
 
         endScope();
 
@@ -242,7 +237,6 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         resolveFunction(stmt, FunctionType.FUNCTION);
         return null;
     }
-
 
     @Override
     public Void visitIfStmt(Stmt.If stmt) {
@@ -371,6 +365,11 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             return null;
         }
 
+        if (currentFunction == FunctionType.CLASS_METHOD) {
+            Lox.error(expr.keyword, "Cannot use 'this' in a static class method.");
+            return null;
+        }
+
         resolveLocal(expr, expr.keyword);
         return null;
     }
@@ -395,16 +394,16 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             VariableInfo info = scopes.peek().get(expr.name.lexeme);
             if (info != null) {
                 switch (info.getState()) {
-                    case DECLARED:
-                        Lox.error(expr.name, "Cannot read local variable in its own initializer.");
-                        break;
-                    case DEFINED:
-                        Lox.error(expr.name, "Cannot read from unassigned local variable.");
-                        break;
-                    case ASSIGNED:
-                        break;
-                    case ACCESSED:
-                        break;
+                case DECLARED:
+                    Lox.error(expr.name, "Cannot read local variable in its own initializer.");
+                    break;
+                case DEFINED:
+                    Lox.error(expr.name, "Cannot read from unassigned local variable.");
+                    break;
+                case ASSIGNED:
+                    break;
+                case ACCESSED:
+                    break;
                 }
             }
         }

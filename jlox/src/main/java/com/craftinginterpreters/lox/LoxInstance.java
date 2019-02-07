@@ -32,6 +32,19 @@ public class LoxInstance {
         fields.put(name.lexeme, value);
     }
 
+    LoxFunction getProperty(Token name) {
+        if (klass == null) {
+            return null;
+        }
+
+        LoxFunction property = klass.findProperty(this, name.lexeme);
+        if (property != null) {
+            return property;
+        }
+
+        return null;
+    }
+
     @Override
     public String toString() {
         return "<" + klass.name + " instance>";

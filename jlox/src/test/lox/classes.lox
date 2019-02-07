@@ -13,3 +13,16 @@ class Cake {
 var cake = Cake("Banana cream", "terrible");
 var expected = "The Banana cream cake is terrible!";
 assertEquals("Test class scoping", expected, cake.describe());
+
+class Square {
+  init(size) {
+    this.size = size;
+  }
+
+  area {
+    return this.size * this.size;
+  }
+}
+
+var square = Square(5);
+assertEquals("Class instance property calls should work", 25, square.area);
