@@ -28,6 +28,8 @@ public class Lox {
 
     static void reset() {
         interpreter = new Interpreter();
+        hadError = false;
+        hadRuntimeError = false;
     }
 
     static void error(int line, String message) {
@@ -52,7 +54,7 @@ public class Lox {
         hadRuntimeError = true;
     }
 
-    private static void runFile(String path) throws IOException {
+    static void runFile(String path) throws IOException {
         byte[] bytes = Files.readAllBytes(Paths.get(path));
         run(new String(bytes, Charset.defaultCharset()));
         if (hadError) {

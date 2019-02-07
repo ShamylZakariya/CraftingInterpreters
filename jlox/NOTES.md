@@ -2,8 +2,8 @@
 
 ## Testing
 I really ought to build some sort of tests for jlox. 
-    - ideally a jlox program could return a value (java object?)
-        - define a built-in function to export values to host?
+    - exposed assertion functions to JLox runtime in LoxTest.java
+    - .lox files in src/test/lox are all run and have some assertions inside
 
 ## Chapter 10
 

@@ -367,7 +367,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    private boolean isTruthy(Object object) {
+    static boolean isTruthy(Object object) {
         // false and nil are falsey, everything else is truthy
         if (object == null) {
             return false;
