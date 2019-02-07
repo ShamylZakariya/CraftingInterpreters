@@ -92,6 +92,7 @@ public class LoxTest {
     @Test
     public void testLoxTestSuite() {
         for (String loxTestFile : getLoxTestSuite()) {
+            System.out.println("Running " + loxTestFile);
             runFile(loxTestFile);
         }
     }

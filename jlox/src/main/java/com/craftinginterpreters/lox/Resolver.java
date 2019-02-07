@@ -11,6 +11,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         NONE,
         FUNCTION,
         INITIALIZER,
+        CLASS_METHOD,
         METHOD,
         LAMBDA
     }
@@ -204,6 +205,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             }
             resolveFunction(method, declaration);
         }
+
+        for (Stmt.Function classMethod : stmt.classMethods) {
+            FunctionType declaration = FunctionType.CLASS_METHOD;
+            resolveFunction(classMethod, declaration);
+        }
+
 
         endScope();
 

@@ -11,6 +11,10 @@ public class LoxInstance {
         this.klass = klass;
     }
 
+    public LoxInstance() {
+        klass = null;
+    }
+
     Object get(Token name) {
         if (fields.containsKey(name.lexeme)) {
             return fields.get(name.lexeme);

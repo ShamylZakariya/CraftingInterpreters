@@ -1,13 +1,7 @@
-class Cake {
-  init(flavor, adjective) {
-    this.flavor = flavor;
-    this.adjective = adjective;
-  }
-
-  taste() {
-    print "The " + this.flavor + " cake is " + this.adjective + "!";
+class Math {
+  class square(n) {
+    return n * n;
   }
 }
 
-var cake = Cake("Banana cream", "terrible");
-cake.taste();
+print Math.square(3); // Prints "9".

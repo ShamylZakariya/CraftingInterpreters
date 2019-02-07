@@ -1,0 +1,12 @@
+class Math {
+  class square(n) {
+    return n * n;
+  }
+  class testThis() {
+      var v = "" + this; // stringify
+      assertEquals("'this' in class method should be class's not instance's", "<class Math>", v);
+  }
+}
+
+assertEquals("Class method Math.square should square 3 to 9", 9, Math.square(3));
+Math.testThis();

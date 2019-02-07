@@ -3,13 +3,26 @@ package com.craftinginterpreters.lox;
 import java.util.List;
 import java.util.Map;
 
-public class LoxClass implements LoxCallable {
+public class LoxClass extends LoxInstance implements LoxCallable {
     final String name;
     private final Map<String, LoxFunction> methods;
+    private final Map<String, LoxFunction> classMethods;
 
-    public LoxClass(String name, Map<String, LoxFunction> methods) {
+    public LoxClass(String name, Map<String, LoxFunction> methods, Map<String,LoxFunction> classMethods) {
+        super();
         this.name = name;
         this.methods = methods;
+        this.classMethods = classMethods;
+    }
+
+    @Override
+    Object get(Token name) {
+        // attempt to find this class method - note we bind 'this' to the class, not an instance!
+        if (classMethods.containsKey(name.lexeme)) {
+            return classMethods.get(name.lexeme).bind(this);
+        }
+
+        throw new RuntimeError(name, "Undefined class method '" + name.lexeme + "' on class '" + this.name + "'.");
     }
 
     LoxFunction findMethod(LoxInstance instance, String name) {

@@ -1,0 +1,15 @@
+class Cake {
+  init(flavor, adjective) {
+    this.flavor = flavor;
+    this.adjective = adjective;
+  }
+
+  describe() {
+    var punctuation = "!";
+    return "The " + this.flavor + " cake is " + this.adjective + punctuation;
+  }
+}
+
+var cake = Cake("Banana cream", "terrible");
+var expected = "The Banana cream cake is terrible!";
+assertEquals("Test class scoping", expected, cake.describe());
