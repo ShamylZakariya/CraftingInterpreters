@@ -1,0 +1,34 @@
+class Doughnut {
+  cook() {
+    return "Fry until golden brown.";
+  }
+}
+
+class BostonCream < Doughnut {
+  cook() {
+    return super.cook() + " " + "Pipe full of custard and coat with chocolate.";
+  }
+}
+
+var instructions = BostonCream().cook();
+assertEquals("calls to super should work", "Fry until golden brown. Pipe full of custard and coat with chocolate.", instructions);
+
+class A {
+    method() {
+        return "A";
+    }
+}
+
+class B < A {
+    method() {
+        return "B";
+    }
+
+    test() {
+        return super.method();
+    }
+}
+
+class C < B {}
+
+assertEquals("calls to super should be correctly looked up", "A", C().test());

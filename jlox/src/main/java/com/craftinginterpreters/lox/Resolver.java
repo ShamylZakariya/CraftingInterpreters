@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
+import com.craftinginterpreters.lox.Expr.Super;
+
 public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private enum FunctionType {
@@ -12,7 +14,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     private enum ClassType {
-        NONE, CLASS
+        NONE, CLASS, SUBCLASS
     }
 
     private enum VariableState {
@@ -185,8 +187,23 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         currentClass = ClassType.CLASS;
 
         declare(stmt.name);
+
+        // resolve superclass between this class's declaration and definition
+        // to avoid mistakes like `class Foo < Foo {}`
+        if (stmt.superclass != null) {
+            currentClass = ClassType.SUBCLASS;
+            resolve(stmt.superclass);
+        }
+
         define(stmt.name, true);
 
+        // build a scope to contain the superclass definition
+        if (stmt.superclass != null) {
+            beginScope();
+            scopes.peek().put("super", new VariableInfo(new Token(TokenType.SUPER, "super", null, 0), VariableState.IGNORE));
+        }
+
+        // build a scope for this class's this and methods
         beginScope();
 
         // since "this" is a magic var, we will just declare it "IGNORE" so
@@ -211,7 +228,13 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             resolveFunction(classMethod, declaration);
         }
 
+        // end class scope
         endScope();
+
+        // end superclass scope
+        if (stmt.superclass != null) {
+            endScope();
+        }
 
         currentClass = enclosingClass;
         return null;
@@ -359,6 +382,19 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public Void visitSetExpr(Expr.Set expr) {
         resolve(expr.value);
         resolve(expr.object);
+        return null;
+    }
+
+    @Override
+    public Void visitSuperExpr(Super expr) {
+
+        if (currentClass == ClassType.NONE) {
+            Lox.error(expr.keyword, "Cannot use 'super' outside of a class.");
+        } else if (currentClass != ClassType.SUBCLASS) {
+            Lox.error(expr.keyword, "Cannot use 'super' in a class with no superclass.");
+        }
+
+        resolveLocal(expr, expr.keyword);
         return null;
     }
 
