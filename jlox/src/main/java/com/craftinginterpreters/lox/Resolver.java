@@ -16,7 +16,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     private enum VariableState {
-        DECLARED, DEFINED, ASSIGNED, ACCESSED
+        DECLARED, DEFINED, ASSIGNED, ACCESSED, IGNORE
     }
 
     private class VariableInfo {
@@ -116,17 +116,21 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
             // TODO: We may want to track the type of variable. If it's a value (string,
             // number, etc) report an error if it's never used. But if it's a class, being
-            // defined but not accessed should be fine.
+            // defined but not accessed should be fine because its constructor could have
+            // intended side effects
             /*
              * implementation note: we'd want to store the type of variable (value / class)
-             * in VariableState and if it's a value we could be aggressive and say if (state
-             * != ACCESSED); whereas if it's a class we'd say (state != ASSIGNED)
+             * in VariableState
              */
             VariableState state = vi.getState();
-            if (state == VariableState.DEFINED) {
-                Lox.error(vi.getName(), "Variable \"" + vi.getName().lexeme + "\" was defined but never assigned to.");
-            } else if (state != VariableState.ACCESSED) {
-                Lox.error(vi.getName(), "Variable \"" + vi.getName().lexeme + "\" was assigned to but never accessed.");
+            if (state != VariableState.IGNORE) {
+                if (state == VariableState.DEFINED) {
+                    Lox.error(vi.getName(),
+                            "Variable \"" + vi.getName().lexeme + "\" was defined but never assigned to.");
+                } else if (state != VariableState.ACCESSED) {
+                    Lox.error(vi.getName(),
+                            "Variable \"" + vi.getName().lexeme + "\" was assigned to but never accessed.");
+                }
             }
         }
     }
@@ -185,9 +189,9 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
         beginScope();
 
-        // since "this" is a magic var, we will just declare it "ACCESSED" so
+        // since "this" is a magic var, we will just declare it "IGNORE" so
         // we don't get any warnings if it's declared but not used
-        scopes.peek().put("this", new VariableInfo(new Token(TokenType.THIS, "this", null, 0), VariableState.ACCESSED));
+        scopes.peek().put("this", new VariableInfo(new Token(TokenType.THIS, "this", null, 0), VariableState.IGNORE));
 
         for (Stmt.Function property : stmt.properties) {
             FunctionType declaration = FunctionType.PROPERTY;
@@ -401,8 +405,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
                     Lox.error(expr.name, "Cannot read from unassigned local variable.");
                     break;
                 case ASSIGNED:
-                    break;
                 case ACCESSED:
+                case IGNORE:
                     break;
                 }
             }
