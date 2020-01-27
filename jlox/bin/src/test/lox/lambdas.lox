@@ -1,0 +1,14 @@
+fun n_times(n, fn) {
+    for (var i = 0; i < n; i = i + 1) {
+        fn(i);
+    }
+}
+
+var count = 0;
+
+n_times(4, fun(i) {
+    count = count + i;
+});
+
+// 0 + 1 + 2 + 3 == 6
+assertEquals("expect final count == 6", 6, count);

@@ -17,6 +17,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         this(null);
     }
 
+    /**
+     * Create an Instance of the Interpreter with a pre-defined set of globals.
+     * Globals can be LoxCallable (functions), literal values (String,Double,boolean,null),LoxClass
+     * @param globals map of string to (LoxCallable|Double|Boolean|null)
+     */
     public Interpreter(Map<String, Object> globals) {
         defineGlobal("clock", new LoxCallable() {
             @Override
@@ -44,10 +49,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     void defineGlobal(String name, Object value) {
         globals.define(name, value);
-    }
-
-    Object getValue(String name) {
-        return environment.get(name);
     }
 
     void interpret(List<Stmt> statements) {
@@ -380,7 +381,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private Object lookUpVariable(Token name, Expr expr) {
         Integer distance = locals.get(expr);
         if (distance != null) {
-            return environment.getAt(distance, name);
+            return environment.getAt(distance, name.lexeme);
         } else {
             return globals.get(name);
         }
