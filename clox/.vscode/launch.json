@@ -9,6 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/clox",
+            "preLaunchTask": "Build",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
