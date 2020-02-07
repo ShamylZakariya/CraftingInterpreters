@@ -4,14 +4,13 @@
 #include "chunk.h"
 #include "value.h"
 
-#define STACK_MAX 256
-
 typedef struct
 {
     Chunk *chunk;
     uint8_t* ip;
-    Value stack[STACK_MAX];
+    Value* stack;
     Value* stackTop;
+    int stackCapacity;
 } VM;
 
 typedef enum {

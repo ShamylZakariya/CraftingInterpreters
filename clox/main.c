@@ -8,6 +8,7 @@
 int main(int argc, const char* argv[])
 {
     initVM();
+
     Chunk chunk;
     initChunk(&chunk);
 

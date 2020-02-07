@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "debug.h"
+#include "memory.h"
 #include "vm.h"
 
 //-----------------------------------------------------------------------------
@@ -9,7 +10,9 @@ VM vm;
 
 static void resetStack()
 {
+    FREE_ARRAY(Value, vm.stack, vm.stackCapacity);
     vm.stackTop = vm.stack;
+    vm.stackCapacity = 0;
 }
 
 static InterpretResult run()
@@ -75,15 +78,27 @@ static InterpretResult run()
 
 void initVM()
 {
+    vm.stack = NULL;
+    vm.stackCapacity = 0;
+    vm.stackTop = vm.stack;
     resetStack();
 }
 
 void freeVM()
 {
+    resetStack();
 }
 
 void push(Value value)
 {
+    // Capter 15 challenge 3: Growable stack
+    int count = (int)(vm.stackTop - vm.stack);
+    if (count == vm.stackCapacity) {
+        int oldCapacity = vm.stackCapacity;
+        vm.stackCapacity = GROW_CAPACITY(oldCapacity);
+        vm.stack = GROW_ARRAY(vm.stack, Value, oldCapacity, vm.stackCapacity);
+        vm.stackTop = vm.stack + count;
+    }
     *vm.stackTop = value;
     vm.stackTop++;
 }
