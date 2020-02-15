@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -106,6 +107,10 @@ void push(Value value)
 
 Value pop()
 {
+    if (vm.stackTop == vm.stack) {
+        fprintf(stderr, "[vm.c : pop()] - attempt to pop empty stack.");
+        exit(1);
+    }
     vm.stackTop--;
     return *vm.stackTop;
 }
