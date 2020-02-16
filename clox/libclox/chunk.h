@@ -4,18 +4,25 @@
 #include "common.h"
 #include "value.h"
 
-typedef enum {
+typedef enum _OpCode {
     OP_CONSTANT,
     OP_CONSTANT_LONG,
+    OP_NIL,
+    OP_TRUE,
+    OP_FALSE,
+    OP_EQUAL,
+    OP_GREATER,
+    OP_LESS,
     OP_ADD,
     OP_SUBTRACT,
     OP_MULTIPLY,
     OP_DIVIDE,
+    OP_NOT,
     OP_NEGATE,
     OP_RETURN,
 } OpCode;
 
-typedef struct {
+typedef struct _Chunk {
     int count;
     int capacity;
     uint8_t* code;
