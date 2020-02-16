@@ -49,7 +49,7 @@ void writeConstant(Chunk* chunk, Value value, int line)
     // store the constant's index as 3 bytes
     uint8_t a = (idx & 0x00FF0000) >> 16;
     uint8_t b = (idx & 0x0000FF00) >> 8;
-    uint8_t c = (idx& 0x000000FF) >> 0;
+    uint8_t c = (idx & 0x000000FF) >> 0;
 
     writeChunk(chunk, a, line);
     writeChunk(chunk, b, line);
