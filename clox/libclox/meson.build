@@ -5,6 +5,7 @@ clox_lib_sources = [
     'memory.c',
     'object.c',
     'scanner.c',
+    'table.c',
     'value.c',
     'vm.c',
 ]
