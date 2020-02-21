@@ -6,8 +6,8 @@
 #include "common.h"
 #include "compiler.h"
 #include "debug.h"
-#include "object.h"
 #include "memory.h"
+#include "object.h"
 #include "vm.h"
 
 //-----------------------------------------------------------------------------
@@ -64,6 +64,7 @@ static InterpretResult run()
 {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op)                          \
     do {                                                  \
         if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -95,14 +96,6 @@ static InterpretResult run()
             push(constant);
             break;
         }
-        case OP_CONSTANT_LONG: {
-            int a = READ_BYTE();
-            int b = READ_BYTE();
-            int c = READ_BYTE();
-            Value constant = vm.chunk->constants.values[a << 16 | b << 8 | c];
-            push(constant);
-            break;
-        }
         case OP_NIL:
             push(NIL_VAL);
             break;
@@ -112,6 +105,38 @@ static InterpretResult run()
         case OP_FALSE:
             push(BOOL_VAL(false));
             break;
+        case OP_POP:
+            pop();
+            break;
+        case OP_GET_GLOBAL: {
+            ObjString* name = READ_STRING();
+            Value value;
+            if (!tableGet(&vm.globals, name, &value)) {
+                runtimeError("Undefined variable '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            push(value);
+            break;
+        }
+        case OP_DEFINE_GLOBAL: {
+            ObjString* name = READ_STRING();
+            tableSet(&vm.globals, name, peek(0));
+            pop();
+            break;
+        }
+        case OP_SET_GLOBAL: {
+            ObjString* name = READ_STRING();
+            // if setting returns true, that menas it was inserted;
+            // but SET_GLOBAL wants the variable to already exist!
+            if (tableSet(&vm.globals, name, peek(0))) {
+                tableDelete(&vm.globals, name);
+                runtimeError("Undefined variable '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            // assignment is an expression, so we don't pop() the
+            // value off the stack in case we were nested in a larger expr
+            break;
+        }
         case OP_EQUAL: {
             Value b = pop();
             Value a = pop();
@@ -156,9 +181,13 @@ static InterpretResult run()
             }
             push(NUMBER_VAL(-AS_NUMBER(pop())));
             break;
-        case OP_RETURN: {
+        case OP_PRINT: {
             printValue(pop());
             printf("\n");
+            break;
+        }
+        case OP_RETURN: {
+            // exit interpreter
             return INTERPRET_OK;
         }
         }
@@ -166,6 +195,7 @@ static InterpretResult run()
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BINARY_OP
 }
 
@@ -178,11 +208,13 @@ void initVM()
     vm.stackTop = vm.stack;
     resetStack();
     vm.objects = NULL;
+    initTable(&vm.globals);
     initTable(&vm.strings);
 }
 
 void freeVM()
 {
+    freeTable(&vm.globals);
     freeTable(&vm.strings);
     resetStack();
     freeObjects();

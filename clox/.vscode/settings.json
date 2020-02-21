@@ -2,6 +2,7 @@
     "files.associations": {
         "common.h": "c",
         "chunk.h": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "value.h": "c"
     }
 }

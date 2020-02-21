@@ -31,7 +31,7 @@
             "program": "${workspaceFolder}/build/meson-out/clox",
             "preLaunchTask": "Build",
             "args": [
-                "scratch/chapter-17/expressions.lox"
+                "scratch/chapter-21/testing.lox"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
