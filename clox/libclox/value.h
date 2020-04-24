@@ -37,7 +37,6 @@ typedef struct _Value {
 #define NUMBER_VAL(value) ((Value) { VAL_NUMBER, { .number = value } })
 #define OBJ_VAL(object) ((Value) { VAL_OBJ, { .obj = (Obj*)object } })
 
-
 typedef struct _ValueArray {
     int capacity;
     int count;

@@ -164,7 +164,8 @@ static void statement();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
-static uint8_t identifierConstant(Token* name) {
+static uint8_t identifierConstant(Token* name)
+{
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
@@ -353,7 +354,8 @@ static void expression()
     parsePrecedence(PREC_ASSIGNMENT);
 }
 
-static void varDeclaration() {
+static void varDeclaration()
+{
     uint8_t global = parseVariable("Expect variable name");
     if (match(TOKEN_EQUAL)) {
         expression();
@@ -388,20 +390,20 @@ static void synchronize()
         if (parser.previous.type == TOKEN_SEMICOLON) {
             return;
         }
-        switch(parser.current.type) {
-            case TOKEN_CLASS:
-            case TOKEN_FUN:
-            case TOKEN_VAR:
-            case TOKEN_FOR:
-            case TOKEN_IF:
-            case TOKEN_WHILE:
-            case TOKEN_PRINT:
-            case TOKEN_RETURN:
-                return;
+        switch (parser.current.type) {
+        case TOKEN_CLASS:
+        case TOKEN_FUN:
+        case TOKEN_VAR:
+        case TOKEN_FOR:
+        case TOKEN_IF:
+        case TOKEN_WHILE:
+        case TOKEN_PRINT:
+        case TOKEN_RETURN:
+            return;
 
-            default:
-                // nothing
-                ;
+        default:
+            // nothing
+            ;
         }
 
         advance();
