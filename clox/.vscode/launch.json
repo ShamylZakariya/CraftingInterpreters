@@ -8,7 +8,7 @@
             "name": "repl",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/meson-out/clox",
+            "program": "${workspaceFolder}/builddir/clox",
             "preLaunchTask": "Build",
             "args": [],
             "stopAtEntry": false,
@@ -28,7 +28,7 @@
             "name": "scratch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/meson-out/clox",
+            "program": "${workspaceFolder}/builddir/clox",
             "preLaunchTask": "Build",
             "args": [
                 "scratch/chapter-21/testing.lox"
