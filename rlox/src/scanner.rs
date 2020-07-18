@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 
 use crate::error;
@@ -70,29 +71,23 @@ impl PartialEq for Literal {
     // TODO: There must be a better way to compare enums bearing payloads.
     fn eq(&self, other: &Self) -> bool {
         match self {
-            Literal::Number(v) => {
-                match other {
-                    Literal::Number(v2) => (v - v2).abs() < 1e-10,
-                    _ => false,
-                }
+            Literal::Number(v) => match other {
+                Literal::Number(v2) => (v - v2).abs() < 1e-10,
+                _ => false,
             },
-            Literal::Str(s) => {
-                match other {
-                    Literal::Str(s2) => s == s2,
-                    _ => false,
-                }
-            }
-            Literal::Bool(b) => {
-                match other {
-                    Literal::Bool(b2) => b == b2,
-                    _ => false
-                }
-            }
+            Literal::Str(s) => match other {
+                Literal::Str(s2) => s == s2,
+                _ => false,
+            },
+            Literal::Bool(b) => match other {
+                Literal::Bool(b2) => b == b2,
+                _ => false,
+            },
         }
     }
 }
 
-impl Eq for Literal{}
+impl Eq for Literal {}
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -109,7 +104,12 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, literal:Option<Literal>, line: i32) -> Token {
+    pub fn new(
+        token_type: TokenType,
+        lexeme: String,
+        literal: Option<Literal>,
+        line: i32,
+    ) -> Token {
         Token {
             token_type: token_type,
             lexeme: lexeme,
@@ -122,19 +122,25 @@ impl Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(literal) = &self.literal {
-            write!(f, "{} {} {}", self.token_type.to_string(), self.lexeme, literal.to_string())
+            write!(
+                f,
+                "{} {} {}",
+                self.token_type.to_string(),
+                self.lexeme,
+                literal.to_string()
+            )
         } else {
             write!(f, "{} {}", self.token_type.to_string(), self.lexeme)
         }
     }
 }
 
-
 pub struct Scanner<'a> {
     source: &'a str,
     current_grapheme: &'a str,
     remainder: &'a str,
     line: i32,
+    keywords: HashMap<String, TokenType>,
 }
 
 fn car_cdr(s: &str) -> (&str, &str) {
@@ -146,7 +152,34 @@ fn car_cdr(s: &str) -> (&str, &str) {
 
 impl Scanner<'_> {
     pub fn new<'a>(source: &'a str) -> Scanner {
-        Scanner { source: source, current_grapheme: "", remainder: source, line: 0 }
+        Scanner {
+            source: source,
+            current_grapheme: "",
+            remainder: source,
+            line: 0,
+            keywords: Scanner::create_keywords(),
+        }
+    }
+
+    fn create_keywords() -> HashMap<String, TokenType> {
+        let mut keywords = HashMap::new();
+        keywords.insert(String::from("and"), TokenType::And);
+        keywords.insert(String::from("class"), TokenType::Class);
+        keywords.insert(String::from("else"), TokenType::Else);
+        keywords.insert(String::from("false"), TokenType::False);
+        keywords.insert(String::from("for"), TokenType::For);
+        keywords.insert(String::from("fun"), TokenType::Fun);
+        keywords.insert(String::from("if"), TokenType::If);
+        keywords.insert(String::from("nil"), TokenType::Nil);
+        keywords.insert(String::from("or"), TokenType::Or);
+        keywords.insert(String::from("print"), TokenType::Print);
+        keywords.insert(String::from("return"), TokenType::Return);
+        keywords.insert(String::from("super"), TokenType::Super);
+        keywords.insert(String::from("this"), TokenType::This);
+        keywords.insert(String::from("true"), TokenType::True);
+        keywords.insert(String::from("var"), TokenType::Var);
+        keywords.insert(String::from("while"), TokenType::While);
+        keywords
     }
 
     // returns the next grapheme in the source string, or None if exhausted.
@@ -203,7 +236,7 @@ impl Scanner<'_> {
     // Returns next+1 unread grapheme, or EOF
     fn peek_next(&self) -> &str {
         for i in 1..5 {
-            let r = self.remainder.get(1..i+1);
+            let r = self.remainder.get(1..i + 1);
             match r {
                 Some(x) => {
                     return x;
@@ -219,7 +252,7 @@ impl Scanner<'_> {
         return self.remainder.len() == 0;
     }
 
-    fn string(&mut self, tokens:&mut Vec<Token>) {
+    fn string(&mut self, tokens: &mut Vec<Token>) {
         let mut string_value = String::new();
         while self.peek() != "\"" && !self.is_at_end() {
             if self.peek() == "\n" {
@@ -237,16 +270,18 @@ impl Scanner<'_> {
         // consume the closing "
         self.advance();
 
-        tokens.push(Token::new(TokenType::Str,
+        tokens.push(Token::new(
+            TokenType::Str,
             String::from(string_value.as_str()),
             Some(Literal::Str(string_value)),
-            self.line));
+            self.line,
+        ));
     }
 
     fn is_digit(&self, grapheme: &str) -> bool {
         match grapheme {
             "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -274,18 +309,64 @@ impl Scanner<'_> {
         // now parse to double
         let d = string_value.parse::<f64>();
         if let Ok(v) = d {
-            tokens.push(Token::new(TokenType::Number,
-            String::from(string_value.as_str()),
-            Some(Literal::Number(v)),
-            self.line));
+            tokens.push(Token::new(
+                TokenType::Number,
+                String::from(string_value.as_str()),
+                Some(Literal::Number(v)),
+                self.line,
+            ));
         } else {
             let error_message = format!("Unable to parse number literal \"{}\"", string_value);
             error::error(self.line, &error_message);
         }
     }
 
+    fn is_alpha(&self, grapheme: &str) -> bool {
+        // TODO: Make this work with non-ascii text.
+        let first_char = grapheme.chars().next().unwrap();
+        match first_char {
+            'a'..='z' | 'A'..='Z' | '_' => true,
+            _ => false,
+        }
+    }
+
+    fn is_alpha_numeric(&self, grapheme: &str) -> bool {
+        self.is_alpha(grapheme) || self.is_digit(grapheme)
+    }
+
+    fn identifier(&mut self, current_grapheme: &str, tokens: &mut Vec<Token>) {
+        let mut string_value = String::new();
+        string_value.push_str(current_grapheme);
+
+        while self.is_alpha_numeric(self.peek()) {
+            string_value.push_str(self.peek());
+            self.advance();
+        }
+
+        let identifier = String::from(string_value.as_str());
+        let identifier_type = self.keywords.get(&identifier);
+        match identifier_type {
+            Some(token_type) => {
+                tokens.push(Token::new(
+                    *token_type,
+                    identifier,
+                    None,
+                    self.line,
+                ));
+            },
+            None => {
+                tokens.push(Token::new(
+                    TokenType::Identifier,
+                    identifier,
+                    None,
+                    self.line,
+                ));
+            }
+        };
+    }
+
     pub fn scan_tokens(&mut self) -> Vec<Token> {
-        let mut tokens:Vec<Token> = vec![];
+        let mut tokens: Vec<Token> = vec![];
 
         loop {
             if let Some(g) = self.next_grapheme() {
@@ -307,7 +388,7 @@ impl Scanner<'_> {
                         } else {
                             tokens.push(Token::new(TokenType::Bang, g, None, self.line));
                         }
-                    },
+                    }
 
                     "=" => {
                         if self.match_next_grapheme("=") {
@@ -315,7 +396,7 @@ impl Scanner<'_> {
                         } else {
                             tokens.push(Token::new(TokenType::Equal, g, None, self.line));
                         }
-                    },
+                    }
 
                     "<" => {
                         if self.match_next_grapheme("=") {
@@ -323,7 +404,7 @@ impl Scanner<'_> {
                         } else {
                             tokens.push(Token::new(TokenType::Less, g, None, self.line));
                         }
-                    },
+                    }
 
                     ">" => {
                         if self.match_next_grapheme("=") {
@@ -331,7 +412,7 @@ impl Scanner<'_> {
                         } else {
                             tokens.push(Token::new(TokenType::Greater, g, None, self.line));
                         }
-                    },
+                    }
 
                     "/" => {
                         if self.match_next_grapheme("/") {
@@ -355,10 +436,12 @@ impl Scanner<'_> {
                     _ => {
                         if self.is_digit(&g) {
                             self.number(&g, &mut tokens);
+                        } else if self.is_alpha(&g) {
+                            self.identifier(&g, &mut tokens);
                         } else {
                             panic!("Unexpected character: \"{}\"", g);
                         }
-                    },
+                    }
                 }
             } else {
                 break;
@@ -453,14 +536,20 @@ mod scanner_tests {
         let mut scanner = Scanner::new("( ) { } < > <= >= = == ! !=");
         let tokens = scanner.scan_tokens();
         let expected_token_types = vec![
-            TokenType::LeftParen, TokenType::RightParen,
-            TokenType::LeftBrace, TokenType::RightBrace,
-            TokenType::Less, TokenType::Greater,
-            TokenType::LessEqual, TokenType::GreaterEqual,
-            TokenType::Equal, TokenType::EqualEqual,
-            TokenType::Bang, TokenType::BangEqual,
+            TokenType::LeftParen,
+            TokenType::RightParen,
+            TokenType::LeftBrace,
+            TokenType::RightBrace,
+            TokenType::Less,
+            TokenType::Greater,
+            TokenType::LessEqual,
+            TokenType::GreaterEqual,
+            TokenType::Equal,
+            TokenType::EqualEqual,
+            TokenType::Bang,
+            TokenType::BangEqual,
         ];
-        let token_types:Vec<TokenType> = tokens.into_iter().map(|t| t.token_type ).collect();
+        let token_types: Vec<TokenType> = tokens.into_iter().map(|t| t.token_type).collect();
         assert_eq!(token_types, expected_token_types);
     }
 
@@ -507,7 +596,7 @@ mod scanner_tests {
     }
 
     #[test]
-    fn produces_expected_fractional_literal() {
+    fn produces_expected_f64_literal() {
         let double_val = 12345.6789;
         let source = format!("({})", double_val);
         let mut scanner = Scanner::new(&source);
@@ -527,4 +616,44 @@ mod scanner_tests {
         }
     }
 
+    #[test]
+    fn produces_expected_keywords() {
+        let mut scanner = Scanner::new("and class else false for fun if nil or print return super this true var while");
+        let tokens = scanner.scan_tokens();
+        let token_types: Vec<TokenType> = tokens.into_iter().map(|t| t.token_type).collect();
+        assert_eq!(token_types, vec![
+            TokenType::And,
+            TokenType::Class,
+            TokenType::Else,
+            TokenType::False,
+            TokenType::For,
+            TokenType::Fun,
+            TokenType::If,
+            TokenType::Nil,
+            TokenType::Or,
+            TokenType::Print,
+            TokenType::Return,
+            TokenType::Super,
+            TokenType::This,
+            TokenType::True,
+            TokenType::Var,
+            TokenType::While,
+        ]);
+    }
+
+    #[test]
+    fn produces_expected_identifiers() {
+        let mut scanner = Scanner::new("{foo bar baz}");
+        let tokens = scanner.scan_tokens();
+
+        assert_eq!(tokens[0].token_type, TokenType::LeftBrace);
+        assert_eq!(tokens[1].token_type, TokenType::Identifier);
+        assert_eq!(tokens[2].token_type, TokenType::Identifier);
+        assert_eq!(tokens[3].token_type, TokenType::Identifier);
+        assert_eq!(tokens[4].token_type, TokenType::RightBrace);
+
+        assert_eq!(tokens[1].lexeme, String::from("foo"));
+        assert_eq!(tokens[2].lexeme, String::from("bar"));
+        assert_eq!(tokens[3].lexeme, String::from("baz"));
+    }
 }
