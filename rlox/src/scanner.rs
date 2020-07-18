@@ -200,6 +200,20 @@ impl Scanner<'_> {
         "\0"
     }
 
+    // Returns next+1 unread grapheme, or EOF
+    fn peek_next(&self) -> &str {
+        for i in 1..5 {
+            let r = self.remainder.get(1..i+1);
+            match r {
+                Some(x) => {
+                    return x;
+                }
+                None => continue,
+            }
+        }
+        "\0"
+    }
+
     // Returns true if at end of source.
     fn is_at_end(&self) -> bool {
         return self.remainder.len() == 0;
@@ -227,6 +241,47 @@ impl Scanner<'_> {
             String::from(string_value.as_str()),
             Some(Literal::Str(string_value)),
             self.line));
+    }
+
+    fn is_digit(&self, grapheme: &str) -> bool {
+        match grapheme {
+            "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => true,
+            _ => false
+        }
+    }
+
+    fn number(&mut self, current_grapheme: &str, tokens: &mut Vec<Token>) {
+        let mut string_value = String::new();
+        string_value.push_str(current_grapheme);
+
+        while self.is_digit(self.peek()) {
+            string_value.push_str(self.peek());
+            self.advance();
+        }
+
+        if self.peek() == "." && self.is_digit(self.peek_next()) {
+            string_value.push('.');
+            // consume.the "."
+            self.advance();
+
+            // add the fractional component
+            while self.is_digit(self.peek()) {
+                string_value.push_str(self.peek());
+                self.advance();
+            }
+        }
+
+        // now parse to double
+        let d = string_value.parse::<f64>();
+        if let Ok(v) = d {
+            tokens.push(Token::new(TokenType::Number,
+            String::from(string_value.as_str()),
+            Some(Literal::Number(v)),
+            self.line));
+        } else {
+            let error_message = format!("Unable to parse number literal \"{}\"", string_value);
+            error::error(self.line, &error_message);
+        }
     }
 
     pub fn scan_tokens(&mut self) -> Vec<Token> {
@@ -297,7 +352,13 @@ impl Scanner<'_> {
 
                     "\"" => self.string(&mut tokens),
 
-                    _ => panic!("Unexpected character: \"{}\"", g),
+                    _ => {
+                        if self.is_digit(&g) {
+                            self.number(&g, &mut tokens);
+                        } else {
+                            panic!("Unexpected character: \"{}\"", g);
+                        }
+                    },
                 }
             } else {
                 break;
@@ -311,6 +372,29 @@ impl Scanner<'_> {
 #[cfg(test)]
 mod scanner_tests {
     use super::*;
+
+    #[test]
+    fn peek_and_peek_next_work() {
+        let mut scanner = Scanner::new("test");
+        assert_eq!(scanner.peek(), "t");
+        assert_eq!(scanner.peek_next(), "e");
+
+        scanner.advance();
+        assert_eq!(scanner.peek(), "e");
+        assert_eq!(scanner.peek_next(), "s");
+
+        scanner.advance();
+        assert_eq!(scanner.peek(), "s");
+        assert_eq!(scanner.peek_next(), "t");
+
+        scanner.advance();
+        assert_eq!(scanner.peek(), "t");
+        assert_eq!(scanner.peek_next(), "\0");
+
+        scanner.advance();
+        assert_eq!(scanner.peek(), "\0");
+        assert_eq!(scanner.peek_next(), "\0");
+    }
 
     #[test]
     fn next_grapheme_advances() {
@@ -381,7 +465,7 @@ mod scanner_tests {
     }
 
     #[test]
-    fn produces_expected_string_tokens() {
+    fn produces_expected_string_literals() {
         let expected_val = "foo bar baz";
         let source = format!("(\"{}\")", expected_val);
         let mut scanner = Scanner::new(&source);
@@ -400,4 +484,47 @@ mod scanner_tests {
             assert_eq!(parsed_val, expected_val);
         }
     }
+
+    #[test]
+    fn produces_expected_int_literal() {
+        let int_val = 12345;
+        let source = format!("({})", int_val);
+        let mut scanner = Scanner::new(&source);
+        let tokens = scanner.scan_tokens();
+
+        assert_eq!(tokens[0].token_type, TokenType::LeftParen);
+        assert_eq!(tokens[1].token_type, TokenType::Number);
+        assert_eq!(tokens[2].token_type, TokenType::RightParen);
+
+        if let Some(literal) = &tokens[1].literal {
+            let parsed_val = match literal {
+                Literal::Number(numeric_val) => numeric_val,
+                _ => &f64::NAN,
+            };
+
+            assert_eq!((int_val as f64), *parsed_val);
+        }
+    }
+
+    #[test]
+    fn produces_expected_fractional_literal() {
+        let double_val = 12345.6789;
+        let source = format!("({})", double_val);
+        let mut scanner = Scanner::new(&source);
+        let tokens = scanner.scan_tokens();
+
+        assert_eq!(tokens[0].token_type, TokenType::LeftParen);
+        assert_eq!(tokens[1].token_type, TokenType::Number);
+        assert_eq!(tokens[2].token_type, TokenType::RightParen);
+
+        if let Some(literal) = &tokens[1].literal {
+            let parsed_val = match literal {
+                Literal::Number(numeric_val) => numeric_val,
+                _ => &f64::NAN,
+            };
+
+            assert_eq!((double_val as f64), *parsed_val);
+        }
+    }
+
 }
