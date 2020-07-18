@@ -2,3 +2,4 @@
 /out
 *.class
 .DS_Store
+target/

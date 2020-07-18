@@ -1,6 +1,8 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq)]
+use crate::error;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -57,7 +59,7 @@ impl fmt::Display for TokenType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     Number(f64),
     Str(String),
@@ -98,7 +100,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
@@ -107,10 +109,10 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: &str, literal:Option<Literal>, line: i32) -> Token {
+    pub fn new(token_type: TokenType, lexeme: String, literal:Option<Literal>, line: i32) -> Token {
         Token {
             token_type: token_type,
-            lexeme: String::from(lexeme),
+            lexeme: lexeme,
             literal: literal,
             line: line,
         }
@@ -132,6 +134,7 @@ pub struct Scanner<'a> {
     source: &'a str,
     current_grapheme: &'a str,
     remainder: &'a str,
+    line: i32,
 }
 
 fn car_cdr(s: &str) -> (&str, &str) {
@@ -143,7 +146,7 @@ fn car_cdr(s: &str) -> (&str, &str) {
 
 impl Scanner<'_> {
     pub fn new<'a>(source: &'a str) -> Scanner {
-        Scanner { source: source, current_grapheme: "", remainder: source }
+        Scanner { source: source, current_grapheme: "", remainder: source, line: 0 }
     }
 
     // returns the next grapheme in the source string, or None if exhausted.
@@ -202,53 +205,76 @@ impl Scanner<'_> {
         return self.remainder.len() == 0;
     }
 
+    fn string(&mut self, tokens:&mut Vec<Token>) {
+        let mut string_value = String::new();
+        while self.peek() != "\"" && !self.is_at_end() {
+            if self.peek() == "\n" {
+                self.line += 1;
+            }
+            string_value.push_str(self.peek());
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            error::error(self.line, "Unterminated string");
+            return;
+        }
+
+        // consume the closing "
+        self.advance();
+
+        tokens.push(Token::new(TokenType::Str,
+            String::from(string_value.as_str()),
+            Some(Literal::Str(string_value)),
+            self.line));
+    }
+
     pub fn scan_tokens(&mut self) -> Vec<Token> {
         let mut tokens:Vec<Token> = vec![];
-        let mut line:i32 = 0;
 
         loop {
             if let Some(g) = self.next_grapheme() {
                 match g.as_str() {
-                    "(" => tokens.push(Token::new(TokenType::LeftParen, g.as_str(), None, line)),
-                    ")" => tokens.push(Token::new(TokenType::RightParen, g.as_str(), None, line)),
-                    "{" => tokens.push(Token::new(TokenType::LeftBrace, g.as_str(), None, line)),
-                    "}" => tokens.push(Token::new(TokenType::RightBrace, g.as_str(), None, line)),
-                    "," => tokens.push(Token::new(TokenType::Comma, g.as_str(), None, line)),
-                    "." => tokens.push(Token::new(TokenType::Dot, g.as_str(), None, line)),
-                    "-" => tokens.push(Token::new(TokenType::Minus, g.as_str(), None, line)),
-                    "+" => tokens.push(Token::new(TokenType::Plus, g.as_str(), None, line)),
-                    ";" => tokens.push(Token::new(TokenType::Semicolon, g.as_str(), None, line)),
-                    "*" => tokens.push(Token::new(TokenType::Star, g.as_str(), None, line)),
+                    "(" => tokens.push(Token::new(TokenType::LeftParen, g, None, self.line)),
+                    ")" => tokens.push(Token::new(TokenType::RightParen, g, None, self.line)),
+                    "{" => tokens.push(Token::new(TokenType::LeftBrace, g, None, self.line)),
+                    "}" => tokens.push(Token::new(TokenType::RightBrace, g, None, self.line)),
+                    "," => tokens.push(Token::new(TokenType::Comma, g, None, self.line)),
+                    "." => tokens.push(Token::new(TokenType::Dot, g, None, self.line)),
+                    "-" => tokens.push(Token::new(TokenType::Minus, g, None, self.line)),
+                    "+" => tokens.push(Token::new(TokenType::Plus, g, None, self.line)),
+                    ";" => tokens.push(Token::new(TokenType::Semicolon, g, None, self.line)),
+                    "*" => tokens.push(Token::new(TokenType::Star, g, None, self.line)),
 
                     "!" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::BangEqual, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::BangEqual, g, None, self.line));
                         } else {
-                            tokens.push(Token::new(TokenType::Bang, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::Bang, g, None, self.line));
                         }
                     },
 
                     "=" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::EqualEqual, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::EqualEqual, g, None, self.line));
                         } else {
-                            tokens.push(Token::new(TokenType::Equal, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::Equal, g, None, self.line));
                         }
                     },
 
                     "<" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::LessEqual, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::LessEqual, g, None, self.line));
                         } else {
-                            tokens.push(Token::new(TokenType::Less, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::Less, g, None, self.line));
                         }
                     },
 
                     ">" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::GreaterEqual, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::GreaterEqual, g, None, self.line));
                         } else {
-                            tokens.push(Token::new(TokenType::Greater, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::Greater, g, None, self.line));
                         }
                     },
 
@@ -259,16 +285,17 @@ impl Scanner<'_> {
                                 self.advance();
                             }
                         } else {
-                            tokens.push(Token::new(TokenType::Slash, g.as_str(), None, line));
+                            tokens.push(Token::new(TokenType::Slash, g, None, self.line));
                         }
                     }
 
                     // Ignore whitespace
                     " " | "\r" | "\t" => (),
 
-                    // Advance current line
-                    "\n" => line += 1,
+                    // Advance current self.line
+                    "\n" => self.line += 1,
 
+                    "\"" => self.string(&mut tokens),
 
                     _ => panic!("Unexpected character: \"{}\"", g),
                 }
@@ -351,5 +378,26 @@ mod scanner_tests {
         ];
         let token_types:Vec<TokenType> = tokens.into_iter().map(|t| t.token_type ).collect();
         assert_eq!(token_types, expected_token_types);
+    }
+
+    #[test]
+    fn produces_expected_string_tokens() {
+        let expected_val = "foo bar baz";
+        let source = format!("(\"{}\")", expected_val);
+        let mut scanner = Scanner::new(&source);
+        let tokens = scanner.scan_tokens();
+
+        assert_eq!(tokens[0].token_type, TokenType::LeftParen);
+        assert_eq!(tokens[1].token_type, TokenType::Str);
+        assert_eq!(tokens[2].token_type, TokenType::RightParen);
+
+        if let Some(literal) = &tokens[1].literal {
+            let parsed_val = match literal {
+                Literal::Str(string_val) => string_val,
+                _ => "",
+            };
+
+            assert_eq!(parsed_val, expected_val);
+        }
     }
 }

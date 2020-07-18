@@ -3,12 +3,14 @@ use std::{fs, io};
 
 mod scanner;
 
-fn report(line: i32, context: &str, message: &str) {
-    eprintln!("[line {}] Error {}: {}", line, context, message);
-}
+pub mod error {
+    pub fn report(line: i32, context: &str, message: &str) {
+        eprintln!("[line {}] Error {}: {}", line, context, message);
+    }
 
-fn error(line:i32, message: &str) {
-    report(line, "", message);
+    pub fn error(line:i32, message: &str) {
+        report(line, "", message);
+    }
 }
 
 pub struct Lox {
