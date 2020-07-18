@@ -64,7 +64,6 @@ impl fmt::Display for TokenType {
 pub enum Literal {
     Number(f64),
     Str(String),
-    Bool(bool),
 }
 
 impl PartialEq for Literal {
@@ -77,10 +76,6 @@ impl PartialEq for Literal {
             },
             Literal::Str(s) => match other {
                 Literal::Str(s2) => s == s2,
-                _ => false,
-            },
-            Literal::Bool(b) => match other {
-                Literal::Bool(b2) => b == b2,
                 _ => false,
             },
         }
@@ -124,19 +119,26 @@ impl fmt::Display for Token {
         if let Some(literal) = &self.literal {
             write!(
                 f,
-                "{} {} {}",
+                "{} {} {} (line: {})",
                 self.token_type.to_string(),
                 self.lexeme,
-                literal.to_string()
+                literal.to_string(),
+                self.line
             )
         } else {
-            write!(f, "{} {}", self.token_type.to_string(), self.lexeme)
+            write!(
+                f,
+                "{} {} (line: {})",
+                self.token_type.to_string(),
+                self.lexeme,
+                self.line
+            )
         }
     }
 }
 
 pub struct Scanner<'a> {
-    source: &'a str,
+    _source: &'a str,
     current_grapheme: &'a str,
     remainder: &'a str,
     line: i32,
@@ -153,10 +155,10 @@ fn car_cdr(s: &str) -> (&str, &str) {
 impl Scanner<'_> {
     pub fn new<'a>(source: &'a str) -> Scanner {
         Scanner {
-            source: source,
+            _source: source,
             current_grapheme: "",
             remainder: source,
-            line: 0,
+            line: 1,
             keywords: Scanner::create_keywords(),
         }
     }
@@ -279,8 +281,9 @@ impl Scanner<'_> {
     }
 
     fn is_digit(&self, grapheme: &str) -> bool {
-        match grapheme {
-            "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => true,
+        let first_char = grapheme.chars().next().unwrap();
+        match first_char {
+            '0'..='9' => true,
             _ => false,
         }
     }
@@ -347,13 +350,8 @@ impl Scanner<'_> {
         let identifier_type = self.keywords.get(&identifier);
         match identifier_type {
             Some(token_type) => {
-                tokens.push(Token::new(
-                    *token_type,
-                    identifier,
-                    None,
-                    self.line,
-                ));
-            },
+                tokens.push(Token::new(*token_type, identifier, None, self.line));
+            }
             None => {
                 tokens.push(Token::new(
                     TokenType::Identifier,
@@ -618,27 +616,32 @@ mod scanner_tests {
 
     #[test]
     fn produces_expected_keywords() {
-        let mut scanner = Scanner::new("and class else false for fun if nil or print return super this true var while");
+        let mut scanner = Scanner::new(
+            "and class else false for fun if nil or print return super this true var while",
+        );
         let tokens = scanner.scan_tokens();
         let token_types: Vec<TokenType> = tokens.into_iter().map(|t| t.token_type).collect();
-        assert_eq!(token_types, vec![
-            TokenType::And,
-            TokenType::Class,
-            TokenType::Else,
-            TokenType::False,
-            TokenType::For,
-            TokenType::Fun,
-            TokenType::If,
-            TokenType::Nil,
-            TokenType::Or,
-            TokenType::Print,
-            TokenType::Return,
-            TokenType::Super,
-            TokenType::This,
-            TokenType::True,
-            TokenType::Var,
-            TokenType::While,
-        ]);
+        assert_eq!(
+            token_types,
+            vec![
+                TokenType::And,
+                TokenType::Class,
+                TokenType::Else,
+                TokenType::False,
+                TokenType::For,
+                TokenType::Fun,
+                TokenType::If,
+                TokenType::Nil,
+                TokenType::Or,
+                TokenType::Print,
+                TokenType::Return,
+                TokenType::Super,
+                TokenType::This,
+                TokenType::True,
+                TokenType::Var,
+                TokenType::While,
+            ]
+        );
     }
 
     #[test]
