@@ -446,6 +446,7 @@ impl Scanner<'_> {
             }
         }
 
+        tokens.push(Token::new(TokenType::Eof, String::new(), None, self.line));
         tokens
     }
 }
@@ -546,6 +547,7 @@ mod scanner_tests {
             TokenType::EqualEqual,
             TokenType::Bang,
             TokenType::BangEqual,
+            TokenType::Eof,
         ];
         let token_types: Vec<TokenType> = tokens.into_iter().map(|t| t.token_type).collect();
         assert_eq!(token_types, expected_token_types);
@@ -640,6 +642,7 @@ mod scanner_tests {
                 TokenType::True,
                 TokenType::Var,
                 TokenType::While,
+                TokenType::Eof,
             ]
         );
     }
