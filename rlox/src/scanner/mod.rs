@@ -119,7 +119,7 @@ impl fmt::Display for Token {
         if let Some(literal) = &self.literal {
             write!(
                 f,
-                "{} {} {} (line: {})",
+                "{} lexeme: \"{}\" literal: {} line: {}",
                 self.token_type.to_string(),
                 self.lexeme,
                 literal.to_string(),
@@ -128,7 +128,7 @@ impl fmt::Display for Token {
         } else {
             write!(
                 f,
-                "{} {} (line: {})",
+                "{} lexeme: \"{}\" line: {}",
                 self.token_type.to_string(),
                 self.lexeme,
                 self.line
