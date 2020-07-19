@@ -452,7 +452,7 @@ impl Scanner<'_> {
 }
 
 #[cfg(test)]
-mod scanner_tests {
+mod tests {
     use super::*;
 
     #[test]

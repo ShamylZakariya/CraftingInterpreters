@@ -2,7 +2,7 @@ use std::io::Write;
 use std::{fs, io};
 
 mod error;
-mod scanner;
+mod parser;
 
 pub struct Lox {
     had_error:bool,
@@ -42,7 +42,7 @@ impl Lox {
     }
 
     fn run(&mut self, source:&str) {
-        let mut scanner = scanner::Scanner::new(source);
+        let mut scanner = parser::scanner::Scanner::new(source);
         let tokens = scanner.scan_tokens();
         for token in tokens {
             println!("token: {}", token);
