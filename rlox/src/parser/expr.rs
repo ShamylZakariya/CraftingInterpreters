@@ -106,6 +106,6 @@ mod tests {
                 }),
             }),
         });
-        println!("print_ast: {}", print_ast(&root));
+        assert_eq!(print_ast(&root), "(* (- 123) (group 45.67))");
     }
 }
