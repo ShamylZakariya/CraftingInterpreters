@@ -18,9 +18,9 @@ pub enum Expr {
     },
 }
 
-pub fn accept<T>(expr: &Box<Expr>, visitor: &T) -> String
+pub fn accept<T, R>(expr: &Box<Expr>, visitor: &T) -> R
 where
-    T: Visitor,
+    T: Visitor<R>,
 {
     match &**expr {
         Expr::Binary {
@@ -42,15 +42,15 @@ where
     }
 }
 
-pub trait Visitor {
-    fn visit_binary_expr(&self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> String;
-    fn visit_grouping_expr(&self, expr: &Box<Expr>) -> String;
-    fn visit_literal_expr(&self, literal: &crate::parser::scanner::Literal) -> String;
-    fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> String;
+pub trait Visitor<R> {
+    fn visit_binary_expr(&self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
+    fn visit_grouping_expr(&self, expr: &Box<Expr>) -> R;
+    fn visit_literal_expr(&self, literal: &crate::parser::scanner::Literal) -> R;
+    fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> R;
 }
 
 pub struct AstPrinter;
-impl Visitor for AstPrinter {
+impl Visitor<String> for AstPrinter {
     fn visit_binary_expr(&self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> String {
         parenthesize(&self, operator.lexeme.as_str(), &vec![left, right])
     }
