@@ -86,16 +86,19 @@ impl Eq for Literal {}
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Literal::Number(n) => write!(f, "{}", n),
+            Literal::Str(s) => write!(f, "{}", s),
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
-    token_type: TokenType,
-    lexeme: String,
-    literal: Option<Literal>,
-    line: i32,
+    pub token_type: TokenType,
+    pub lexeme: String,
+    pub literal: Option<Literal>,
+    pub line: i32,
 }
 
 impl Token {
