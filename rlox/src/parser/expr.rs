@@ -82,8 +82,8 @@ fn parenthesize(ast_printer: &AstPrinter, name: &str, expressions: &Vec<&Box<Exp
 }
 
 pub fn print_ast(expr: &Box<Expr>) -> String {
-    let printer = Box::new(AstPrinter);
-    accept(expr, &*printer)
+    let printer = AstPrinter;
+    accept(expr, &printer)
 }
 
 #[cfg(test)]
