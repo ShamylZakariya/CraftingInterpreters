@@ -155,6 +155,30 @@ fn car_cdr(s: &str) -> (&str, &str) {
     }
 }
 
+// Returns true if the grapheme is a digit.
+fn is_digit(grapheme: &str) -> bool {
+    let first_char = grapheme.chars().next().unwrap();
+    match first_char {
+        '0'..='9' => true,
+        _ => false,
+    }
+}
+
+// Returns true if the grapheme is a letter (a-z, A-Z)
+fn is_alpha(grapheme: &str) -> bool {
+    // TODO: Make this work with non-ascii text.
+    let first_char = grapheme.chars().next().unwrap();
+    match first_char {
+        'a'..='z' | 'A'..='Z' | '_' => true,
+        _ => false,
+    }
+}
+
+// Returns true if the grapheme is_alpha and is_digit.
+fn is_alpha_numeric(grapheme: &str) -> bool {
+    is_alpha(grapheme) || is_digit(grapheme)
+}
+
 impl Scanner<'_> {
     pub fn new<'a>(source: &'a str) -> Scanner {
         Scanner {
@@ -257,6 +281,7 @@ impl Scanner<'_> {
         return self.remainder.len() == 0;
     }
 
+    // Consumes a string and writes it into tokens.
     fn string(&mut self, tokens: &mut Vec<Token>) {
         let mut string_value = String::new();
         while self.peek() != "\"" && !self.is_at_end() {
@@ -283,30 +308,23 @@ impl Scanner<'_> {
         ));
     }
 
-    fn is_digit(&self, grapheme: &str) -> bool {
-        let first_char = grapheme.chars().next().unwrap();
-        match first_char {
-            '0'..='9' => true,
-            _ => false,
-        }
-    }
-
+    // Consumes a number, and writes it into tokens.
     fn number(&mut self, current_grapheme: &str, tokens: &mut Vec<Token>) {
         let mut string_value = String::new();
         string_value.push_str(current_grapheme);
 
-        while self.is_digit(self.peek()) {
+        while is_digit(self.peek()) {
             string_value.push_str(self.peek());
             self.advance();
         }
 
-        if self.peek() == "." && self.is_digit(self.peek_next()) {
+        if self.peek() == "." && is_digit(self.peek_next()) {
             string_value.push('.');
             // consume.the "."
             self.advance();
 
             // add the fractional component
-            while self.is_digit(self.peek()) {
+            while is_digit(self.peek()) {
                 string_value.push_str(self.peek());
                 self.advance();
             }
@@ -327,24 +345,12 @@ impl Scanner<'_> {
         }
     }
 
-    fn is_alpha(&self, grapheme: &str) -> bool {
-        // TODO: Make this work with non-ascii text.
-        let first_char = grapheme.chars().next().unwrap();
-        match first_char {
-            'a'..='z' | 'A'..='Z' | '_' => true,
-            _ => false,
-        }
-    }
-
-    fn is_alpha_numeric(&self, grapheme: &str) -> bool {
-        self.is_alpha(grapheme) || self.is_digit(grapheme)
-    }
-
+    // Consumes an identifier and writes it into tokens.
     fn identifier(&mut self, current_grapheme: &str, tokens: &mut Vec<Token>) {
         let mut string_value = String::new();
         string_value.push_str(current_grapheme);
 
-        while self.is_alpha_numeric(self.peek()) {
+        while is_alpha_numeric(self.peek()) {
             string_value.push_str(self.peek());
             self.advance();
         }
@@ -366,6 +372,7 @@ impl Scanner<'_> {
         };
     }
 
+    // Scans the source string provided at construction and returns a vector of Token.
     pub fn scan_tokens(&mut self) -> Vec<Token> {
         let mut tokens: Vec<Token> = vec![];
 
@@ -435,9 +442,9 @@ impl Scanner<'_> {
                     "\"" => self.string(&mut tokens),
 
                     _ => {
-                        if self.is_digit(&g) {
+                        if is_digit(&g) {
                             self.number(&g, &mut tokens);
-                        } else if self.is_alpha(&g) {
+                        } else if is_alpha(&g) {
                             self.identifier(&g, &mut tokens);
                         } else {
                             panic!("Unexpected character: \"{}\"", g);
