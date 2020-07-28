@@ -64,6 +64,9 @@ impl fmt::Display for TokenType {
 pub enum Literal {
     Number(f64),
     Str(String),
+    False,
+    True,
+    Nil,
 }
 
 impl PartialEq for Literal {
@@ -78,6 +81,18 @@ impl PartialEq for Literal {
                 Literal::Str(s2) => s == s2,
                 _ => false,
             },
+            Literal::False => match other {
+                Literal::False => true,
+                _ => false
+            },
+            Literal::True => match other {
+                Literal::True => true,
+                _ => false
+            },
+            Literal::Nil => match other {
+                Literal::Nil => true,
+                _ => false
+            },
         }
     }
 }
@@ -89,6 +104,9 @@ impl fmt::Display for Literal {
         match self {
             Literal::Number(n) => write!(f, "{}", n),
             Literal::Str(s) => write!(f, "{}", s),
+            Literal::False => write!(f, "False"),
+            Literal::True => write!(f, "True"),
+            Literal::Nil => write!(f, "Nil"),
         }
     }
 }
