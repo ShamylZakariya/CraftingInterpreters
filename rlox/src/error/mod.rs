@@ -11,6 +11,10 @@ pub fn error_at_line(line: i32, message: &str) {
 pub fn error_at_token(token: &Token, message: &str) {
     match token.token_type {
         TokenType::Eof => report(token.line, " at end", message),
-        _ => report(token.line, format!(" at '{}'", token.lexeme).as_str(), message),
+        _ => report(
+            token.line,
+            format!(" at '{}'", token.lexeme).as_str(),
+            message,
+        ),
     }
 }

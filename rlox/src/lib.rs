@@ -5,11 +5,10 @@ mod error;
 mod parser;
 
 pub struct Lox {
-    had_error:bool,
+    had_error: bool,
 }
 
 impl Lox {
-
     pub fn new() -> Lox {
         Lox { had_error: false }
     }
@@ -41,12 +40,19 @@ impl Lox {
         }
     }
 
-    fn run(&mut self, source:&str) {
+    fn run(&mut self, source: &str) {
         let mut scanner = parser::scanner::Scanner::new(source);
         let tokens = scanner.scan_tokens();
-        for token in tokens {
-            println!("token: {}", token);
+        let mut parser = parser::parser::Parser::new(tokens);
+        match parser.parse() {
+            Ok(expr) => {
+                let ast = parser::expr::print_ast(&expr);
+                println!("{}", ast);
+            }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                self.had_error = true;
+            }
         }
     }
-
 }

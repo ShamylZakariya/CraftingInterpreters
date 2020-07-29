@@ -1,11 +1,13 @@
+use std::fmt;
+
 use crate::error;
 use crate::parser::expr::*;
 use crate::parser::scanner::*;
 
-type Result<T> = std::result::Result<T, ParseError>;
+pub type Result<T> = std::result::Result<T, ParseError>;
 
 #[derive(Debug, Clone)]
-struct ParseError {
+pub struct ParseError {
     pub token: Token,
     pub message: String,
 }
@@ -19,17 +21,27 @@ impl ParseError {
     }
 }
 
-struct Parser {
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "token: {} error:\"{}\"", self.token, self.message)
+    }
+}
+
+pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
 }
 
 impl Parser {
-    fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens: tokens,
             current: 0,
         }
+    }
+
+    pub fn parse(&mut self) -> Result<Box<Expr>> {
+        self.expression()
     }
 
     // Recursive descent, ordered by associativity

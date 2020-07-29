@@ -382,7 +382,12 @@ impl Scanner<'_> {
 
                     "!" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::BangEqual, "!=".to_string(), None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::BangEqual,
+                                "!=".to_string(),
+                                None,
+                                self.line,
+                            ));
                         } else {
                             tokens.push(Token::new(TokenType::Bang, g, None, self.line));
                         }
@@ -390,7 +395,12 @@ impl Scanner<'_> {
 
                     "=" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::EqualEqual, "==".to_string(), None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::EqualEqual,
+                                "==".to_string(),
+                                None,
+                                self.line,
+                            ));
                         } else {
                             tokens.push(Token::new(TokenType::Equal, g, None, self.line));
                         }
@@ -398,7 +408,12 @@ impl Scanner<'_> {
 
                     "<" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::LessEqual, "<=".to_string(), None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::LessEqual,
+                                "<=".to_string(),
+                                None,
+                                self.line,
+                            ));
                         } else {
                             tokens.push(Token::new(TokenType::Less, g, None, self.line));
                         }
@@ -406,7 +421,12 @@ impl Scanner<'_> {
 
                     ">" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::GreaterEqual, ">=".to_string(), None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::GreaterEqual,
+                                ">=".to_string(),
+                                None,
+                                self.line,
+                            ));
                         } else {
                             tokens.push(Token::new(TokenType::Greater, g, None, self.line));
                         }

@@ -1,6 +1,6 @@
 use rlox::Lox;
 
-use std::{env};
+use std::env;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
