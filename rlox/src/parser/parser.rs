@@ -1,17 +1,17 @@
+use crate::error;
 use crate::parser::expr::*;
 use crate::parser::scanner::*;
-use crate::error;
 
 type Result<T> = std::result::Result<T, ParseError>;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 struct ParseError {
-    pub token:Token,
-    pub message:String,
+    pub token: Token,
+    pub message: String,
 }
 
 impl ParseError {
-    fn new(token:Token, message: &str) -> Self {
+    fn new(token: Token, message: &str) -> Self {
         Self {
             token: token,
             message: message.to_owned(),
@@ -56,7 +56,7 @@ impl Parser {
         }
         if self.match_token(&vec![TokenType::LeftParen]) {
             let expr = self.expression()?;
-            self.consume(TokenType::RightParen, "Expect ')' after expression.");
+            self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
             return Ok(Box::new(Expr::Grouping { expression: expr }));
         }
 
@@ -157,13 +157,12 @@ impl Parser {
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, on_error_message: &str) -> &Token {
+    fn consume(&mut self, token_type: TokenType, on_error_message: &str) -> Result<&Token> {
         if self.check(token_type) {
-            return self.advance();
+            return Ok(self.advance());
         }
 
-        // can't throw, so we need to start propagating errors up
-        todo!();
+        Err(self.error(self.peek(), on_error_message))
     }
 
     fn is_at_end(&self) -> bool {
@@ -190,7 +189,7 @@ impl Parser {
 
     // Error reporting, handling
 
-    fn error(&self, token:&Token, message: &str) -> ParseError {
+    fn error(&self, token: &Token, message: &str) -> ParseError {
         error::error_at_token(token, message);
         ParseError::new(token.clone(), message)
     }
@@ -202,10 +201,17 @@ impl Parser {
                 return;
             }
             match self.peek().token_type {
-                TokenType::Class | TokenType::Fun | TokenType::Var | TokenType::For | TokenType::If | TokenType::While | TokenType::Print | TokenType::Return => {
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => {
                     return;
                 }
-                _ => () // keep seeking
+                _ => (), // keep seeking
             }
             self.advance();
         }
@@ -251,11 +257,15 @@ mod tests {
 
     #[test]
     fn fails_to_parse_bad_expressions() {
-        let mut scanner = Scanner::new("a = foo");
-        let tokens = scanner.scan_tokens();
-        let mut parser = Parser::new(tokens);
-        if let Ok(_) = parser.expression() {
-            panic!("Expression should not have parsed");
+        let expressions = vec!["1 + (5/2", "a = foo"];
+
+        for expression in expressions {
+            let mut scanner = Scanner::new(expression);
+            let tokens = scanner.scan_tokens();
+            let mut parser = Parser::new(tokens);
+            if let Ok(_) = parser.expression() {
+                panic!("Expression should not have parsed");
+            }
         }
     }
 }
