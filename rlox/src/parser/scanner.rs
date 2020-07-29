@@ -60,41 +60,13 @@ impl fmt::Display for TokenType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Literal {
     Number(f64),
     Str(String),
     False,
     True,
     Nil,
-}
-
-impl PartialEq for Literal {
-    // TODO: There must be a better way to compare enums bearing payloads.
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            Literal::Number(v) => match other {
-                Literal::Number(v2) => (v - v2).abs() < 1e-10,
-                _ => false,
-            },
-            Literal::Str(s) => match other {
-                Literal::Str(s2) => s == s2,
-                _ => false,
-            },
-            Literal::False => match other {
-                Literal::False => true,
-                _ => false
-            },
-            Literal::True => match other {
-                Literal::True => true,
-                _ => false
-            },
-            Literal::Nil => match other {
-                Literal::Nil => true,
-                _ => false
-            },
-        }
-    }
 }
 
 impl Eq for Literal {}
@@ -410,7 +382,7 @@ impl Scanner<'_> {
 
                     "!" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::BangEqual, g, None, self.line));
+                            tokens.push(Token::new(TokenType::BangEqual, "!=".to_string(), None, self.line));
                         } else {
                             tokens.push(Token::new(TokenType::Bang, g, None, self.line));
                         }
@@ -418,7 +390,7 @@ impl Scanner<'_> {
 
                     "=" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::EqualEqual, g, None, self.line));
+                            tokens.push(Token::new(TokenType::EqualEqual, "==".to_string(), None, self.line));
                         } else {
                             tokens.push(Token::new(TokenType::Equal, g, None, self.line));
                         }
@@ -426,7 +398,7 @@ impl Scanner<'_> {
 
                     "<" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::LessEqual, g, None, self.line));
+                            tokens.push(Token::new(TokenType::LessEqual, "<=".to_string(), None, self.line));
                         } else {
                             tokens.push(Token::new(TokenType::Less, g, None, self.line));
                         }
@@ -434,7 +406,7 @@ impl Scanner<'_> {
 
                     ">" => {
                         if self.match_next_grapheme("=") {
-                            tokens.push(Token::new(TokenType::GreaterEqual, g, None, self.line));
+                            tokens.push(Token::new(TokenType::GreaterEqual, ">=".to_string(), None, self.line));
                         } else {
                             tokens.push(Token::new(TokenType::Greater, g, None, self.line));
                         }

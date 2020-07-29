@@ -17,35 +17,46 @@ impl Parser {
     // Recursive descent, ordered by associativity
     fn primary(&mut self) -> Box<Expr> {
         if self.match_token(&vec![TokenType::False]) {
-            return Box::new(Expr::Literal{ value: crate::parser::scanner::Literal::False});
+            return Box::new(Expr::Literal {
+                value: crate::parser::scanner::Literal::False,
+            });
         }
         if self.match_token(&vec![TokenType::True]) {
-            return Box::new(Expr::Literal{ value: crate::parser::scanner::Literal::True});
+            return Box::new(Expr::Literal {
+                value: crate::parser::scanner::Literal::True,
+            });
         }
         if self.match_token(&vec![TokenType::Nil]) {
-            return Box::new(Expr::Literal{ value: crate::parser::scanner::Literal::Nil});
+            return Box::new(Expr::Literal {
+                value: crate::parser::scanner::Literal::Nil,
+            });
         }
         if self.match_token(&vec![TokenType::Number, TokenType::Str]) {
             if let Some(l) = self.previous().clone().literal {
-                return Box::new(Expr::Literal{ value: l });
+                return Box::new(Expr::Literal { value: l });
             }
         }
         if self.match_token(&vec![TokenType::LeftParen]) {
             let expr = self.expression();
             self.consume(TokenType::RightParen, "Expect ')' after expression.");
-            return Box::new(Expr::Grouping{ expression: expr });
+            return Box::new(Expr::Grouping { expression: expr });
         }
 
         panic!("Shouldn't make it here in primary()");
         // make compiler happy
-        return Box::new(Expr::Literal{ value: crate::parser::scanner::Literal::False});
+        return Box::new(Expr::Literal {
+            value: crate::parser::scanner::Literal::False,
+        });
     }
 
     fn unary(&mut self) -> Box<Expr> {
         if self.match_token(&vec![TokenType::Bang, TokenType::Minus]) {
             let op = self.previous().clone();
             let right = self.unary();
-            return Box::new(Expr::Unary{ operator: op, right: right});
+            return Box::new(Expr::Unary {
+                operator: op,
+                right: right,
+            });
         }
         self.primary()
     }
@@ -55,7 +66,11 @@ impl Parser {
         while self.match_token(&vec![TokenType::Slash, TokenType::Star]) {
             let op = self.previous().clone();
             let right = self.unary();
-            expr = Box::new(Expr::Binary{ left: expr, operator: op, right: right})
+            expr = Box::new(Expr::Binary {
+                left: expr,
+                operator: op,
+                right: right,
+            })
         }
         expr
     }
@@ -65,7 +80,11 @@ impl Parser {
         while self.match_token(&vec![TokenType::Minus, TokenType::Plus]) {
             let op = self.previous().clone();
             let right = self.multiplication();
-            expr = Box::new(Expr::Binary{ left: expr, operator: op, right: right})
+            expr = Box::new(Expr::Binary {
+                left: expr,
+                operator: op,
+                right: right,
+            })
         }
         expr
     }
@@ -103,7 +122,7 @@ impl Parser {
         expr
     }
 
-    fn expression(&mut self)->Box<Expr> {
+    fn expression(&mut self) -> Box<Expr> {
         self.equality()
     }
 
@@ -153,5 +172,40 @@ impl Parser {
 
     fn previous(&self) -> &Token {
         &self.tokens[self.current - 1]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_expressions() {
+        let expressions = vec![
+            "1 + (5/2)",
+            "1 + 2 + 3 + 4",
+            "5 == nil",
+            "1 >= 3",
+            "nil < 10",
+            "false == true;",
+        ];
+
+        let expected_asts = vec![
+            "(+ 1 (group (/ 5 2)))",
+            "(+ (+ (+ 1 2) 3) 4)",
+            "(== 5 Nil)",
+            "(>= 1 3)",
+            "(< Nil 10)",
+            "(== False True)",
+        ];
+
+        for (expression, expected_ast) in expressions.iter().zip(expected_asts) {
+            let mut scanner = Scanner::new(expression);
+            let tokens = scanner.scan_tokens();
+            let mut parser = Parser::new(tokens);
+            let root = parser.expression();
+            let ast = print_ast(&root);
+            assert_eq!(ast, expected_ast);
+        }
     }
 }
