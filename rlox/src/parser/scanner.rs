@@ -283,7 +283,7 @@ impl Scanner<'_> {
         }
 
         if self.is_at_end() {
-            error::error(self.line, "Unterminated string");
+            error::error_at_line(self.line, "Unterminated string");
             return;
         }
 
@@ -331,7 +331,7 @@ impl Scanner<'_> {
             ));
         } else {
             let error_message = format!("Unable to parse number literal \"{}\"", string_value);
-            error::error(self.line, &error_message);
+            error::error_at_line(self.line, &error_message);
         }
     }
 
