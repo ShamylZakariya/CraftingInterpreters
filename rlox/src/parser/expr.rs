@@ -1,4 +1,5 @@
 use crate::parser::scanner::*;
+use std::fmt;
 
 pub enum Expr {
     Binary {
@@ -73,9 +74,15 @@ fn parenthesize(ast_printer: &AstPrinter, name: &str, expressions: &Vec<&Box<Exp
     return sequence;
 }
 
-pub fn print_ast(expr: &Box<Expr>) -> String {
+pub fn format_ast(expr: &Box<Expr>) -> String {
     let printer = AstPrinter;
     accept(expr, &printer)
+}
+
+impl fmt::Display for &Box<Expr> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", format_ast(self))
+    }
 }
 
 #[cfg(test)]
@@ -98,6 +105,6 @@ mod tests {
                 }),
             }),
         });
-        assert_eq!(print_ast(&root), "(* (- 123) (group 45.67))");
+        assert_eq!(format_ast(&root), "(* (- 123) (group 45.67))");
     }
 }

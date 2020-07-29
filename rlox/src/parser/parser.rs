@@ -259,7 +259,7 @@ mod tests {
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
             if let Ok(root) = parser.expression() {
-                let ast = print_ast(&root);
+                let ast = format_ast(&root);
                 assert_eq!(ast, expected_ast);
             } else {
                 panic!("Failed to parse a valid expression.");

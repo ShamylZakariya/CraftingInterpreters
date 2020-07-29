@@ -46,8 +46,8 @@ impl Lox {
         let mut parser = parser::parser::Parser::new(tokens);
         match parser.parse() {
             Ok(expr) => {
-                let ast = parser::expr::print_ast(&expr);
-                println!("{}", ast);
+                //let ast = parser::expr::format_ast(&expr);
+                println!("{}", &expr);
             }
             Err(e) => {
                 eprintln!("Error: {}", e);
