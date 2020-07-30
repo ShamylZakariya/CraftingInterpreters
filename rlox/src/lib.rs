@@ -3,6 +3,7 @@ use std::{fs, io};
 
 mod error;
 mod parser;
+mod interpreter;
 
 pub struct Lox {
     had_error: bool,
