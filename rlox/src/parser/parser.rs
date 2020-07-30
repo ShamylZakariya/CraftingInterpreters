@@ -202,7 +202,7 @@ impl Parser {
     // Error reporting, handling
 
     fn error(&self, token: &Token, message: &str) -> ParseError {
-        error::error_at_token(token, message);
+        error::parse_error_at_token(token, message);
         ParseError::new(token.clone(), message)
     }
 

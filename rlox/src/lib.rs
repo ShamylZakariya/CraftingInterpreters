@@ -2,16 +2,17 @@ use std::io::Write;
 use std::{fs, io};
 
 mod error;
-mod parser;
 mod interpreter;
+mod parser;
 
 pub struct Lox {
     had_error: bool,
+    had_runtime_error: bool,
 }
 
 impl Lox {
     pub fn new() -> Lox {
-        Lox { had_error: false }
+        Lox { had_error: false, had_runtime_error: false }
     }
 
     pub fn run_file(&mut self, file: &str) {
@@ -20,6 +21,9 @@ impl Lox {
 
         if self.had_error {
             std::process::exit(65);
+        }
+        if self.had_runtime_error {
+            std::process::exit(70);
         }
     }
 
@@ -47,8 +51,15 @@ impl Lox {
         let mut parser = parser::parser::Parser::new(tokens);
         match parser.parse() {
             Ok(expr) => {
-                //let ast = parser::expr::format_ast(&expr);
-                println!("{}", &expr);
+                match interpreter::interpreter::interpret(&expr) {
+                    Ok(result) => {
+                        println!("{}", result);
+                    },
+                    Err(_) => {
+                        self.had_runtime_error = true;
+                    }
+                }
+
             }
             Err(e) => {
                 eprintln!("Error: {}", e);

@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::error;
 use crate::parser::expr::*;
 use crate::parser::parser::*;
 use crate::parser::scanner::{Literal, Scanner, Token, TokenType};
@@ -35,16 +36,30 @@ impl Eq for LoxObject {}
 impl fmt::Display for LoxObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LoxObject::Number(n) => write!(f, "{}", n),
+            LoxObject::Number(n) => {
+                if *n < 0.0 {
+                    if n.ceil() - n < 1e-8 {
+                        write!(f, "{}", *n as i32)
+                    } else {
+                        write!(f, "{}", n)
+                    }
+                } else {
+                    if n - n.floor() < 1e-8 {
+                        write!(f, "{}", *n as i32)
+                    } else {
+                        write!(f, "{}", n)
+                    }
+                }
+            },
             LoxObject::Str(s) => write!(f, "{}", s),
             LoxObject::Boolean(v) => {
                 if *v {
-                    write!(f, "True")
+                    write!(f, "true")
                 } else {
                     write!(f, "false")
                 }
-            },
-            LoxObject::Nil => write!(f, "Nil"),
+            }
+            LoxObject::Nil => write!(f, "nil"),
         }
     }
 }
@@ -97,7 +112,7 @@ impl Visitor<Result<LoxObject>> for Interpreter {
                 } else {
                     Err(RuntimeError::new(operator, "Left operand not a number"))
                 }
-            },
+            }
             TokenType::Slash => {
                 if let LoxObject::Number(l) = left {
                     if let LoxObject::Number(r) = right {
@@ -108,7 +123,7 @@ impl Visitor<Result<LoxObject>> for Interpreter {
                 } else {
                     Err(RuntimeError::new(operator, "Left operand not a number"))
                 }
-            },
+            }
             TokenType::Star => {
                 if let LoxObject::Number(l) = left {
                     if let LoxObject::Number(r) = right {
@@ -119,7 +134,7 @@ impl Visitor<Result<LoxObject>> for Interpreter {
                 } else {
                     Err(RuntimeError::new(operator, "Left operand not a number"))
                 }
-            },
+            }
             TokenType::Plus => {
                 if let LoxObject::Number(l) = left {
                     if let LoxObject::Number(r) = right {
@@ -134,11 +149,14 @@ impl Visitor<Result<LoxObject>> for Interpreter {
                         Err(RuntimeError::new(operator, "Right operand not a string"))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a number or string"))
+                    Err(RuntimeError::new(
+                        operator,
+                        "Left operand not a number or string",
+                    ))
                 }
             }
 
-            _ => Err(RuntimeError::new(operator, "Unrecognized binary operator."))
+            _ => Err(RuntimeError::new(operator, "Unrecognized binary operator.")),
         }
     }
 
@@ -170,9 +188,15 @@ pub fn _evaluate(interpreter: &Interpreter, expr: &Box<Expr>) -> Result<LoxObjec
     accept(expr, interpreter)
 }
 
-pub fn evaluate(expr: &Box<Expr>) -> Result<LoxObject> {
+pub fn interpret(expr: &Box<Expr>) -> Result<LoxObject> {
     let interpreter = Interpreter;
-    accept(expr, &interpreter)
+    match accept(expr, &interpreter) {
+        Ok(result) => Ok(result),
+        Err(e) => {
+            error::runtime_error(&e);
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -181,23 +205,20 @@ mod tests {
 
     #[test]
     fn evaluate_works() {
-        let expression = " 1 + 2 * 3";
-        let mut scanner = Scanner::new(expression);
-        let tokens = scanner.scan_tokens();
-        let mut parser = Parser::new(tokens);
-        if let Ok(expr) = parser.parse() {
-            match evaluate(&expr) {
-                Ok(result) => {
-                    if let LoxObject::Number(n) = result {
-                        assert_eq!(n, 7.0);
-                    } else {
-                        panic!("Result should have been numeric");
-                    }
-                }
-                Err(e) => panic!("Couldn't interpret \"{}\" : \"{}\"", expression, e),
-            }
-        } else {
-            panic!("Couldn't parse expression \"{}\"", expression);
+        let inputs = vec![
+            ("1+2*3", LoxObject::Number(7.0)),
+            ("(1+2)*3", LoxObject::Number(9.0)),
+            ("1+(2*3)", LoxObject::Number(7.0)),
+            ("(3*4)/2", LoxObject::Number(6.0)),
+            ("3*4/2", LoxObject::Number(6.0)),
+        ];
+        for (expression, expected_result) in inputs {
+            let mut scanner = Scanner::new(expression);
+            let tokens = scanner.scan_tokens();
+            let mut parser = Parser::new(tokens);
+            let expr = parser.parse().unwrap();
+            let result = interpret(&expr).unwrap();
+            assert_eq!(result, expected_result);
         }
     }
 }
