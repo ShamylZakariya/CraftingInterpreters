@@ -35,9 +35,7 @@ impl Eq for LoxObject {}
 impl fmt::Display for LoxObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LoxObject::Number(n) => {
-                write!(f, "{}", n)
-            },
+            LoxObject::Number(n) => write!(f, "{}", n),
             LoxObject::Str(s) => write!(f, "{}", s),
             LoxObject::Boolean(v) => {
                 if *v {
@@ -79,6 +77,18 @@ impl fmt::Display for RuntimeError {
 //-------------
 
 pub struct Interpreter;
+impl Interpreter {
+    pub fn interpret(&self, expr: &Box<Expr>) -> Result<LoxObject> {
+        match expr.accept(self) {
+            Ok(result) => Ok(result),
+            Err(e) => {
+                error::runtime_error(&e);
+                Err(e)
+            }
+        }
+    }
+}
+
 impl Visitor<Result<LoxObject>> for Interpreter {
     fn visit_binary_expr(
         &self,
@@ -86,8 +96,8 @@ impl Visitor<Result<LoxObject>> for Interpreter {
         operator: &Token,
         right: &Box<Expr>,
     ) -> Result<LoxObject> {
-        let left = _evaluate(self, left)?;
-        let right = _evaluate(self, right)?;
+        let left = self.interpret(left)?;
+        let right = self.interpret(right)?;
         match operator.token_type {
             TokenType::Minus => {
                 if let LoxObject::Number(l) = left {
@@ -152,7 +162,7 @@ impl Visitor<Result<LoxObject>> for Interpreter {
     }
 
     fn visit_grouping_expr(&self, expr: &Box<Expr>) -> Result<LoxObject> {
-        _evaluate(self, expr)
+        self.interpret(expr)
     }
 
     fn visit_literal_expr(&self, literal: &crate::parser::scanner::Literal) -> Result<LoxObject> {
@@ -160,7 +170,7 @@ impl Visitor<Result<LoxObject>> for Interpreter {
     }
 
     fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> Result<LoxObject> {
-        let right = _evaluate(self, right)?;
+        let right = self.interpret(right)?;
         match operator.token_type {
             TokenType::Bang => Ok(LoxObject::Boolean(!right.is_truthy())),
             TokenType::Minus => match right {
@@ -175,25 +185,10 @@ impl Visitor<Result<LoxObject>> for Interpreter {
     }
 }
 
-pub fn _evaluate(interpreter: &Interpreter, expr: &Box<Expr>) -> Result<LoxObject> {
-    accept(expr, interpreter)
-}
-
-pub fn interpret(expr: &Box<Expr>) -> Result<LoxObject> {
-    let interpreter = Interpreter;
-    match accept(expr, &interpreter) {
-        Ok(result) => Ok(result),
-        Err(e) => {
-            error::runtime_error(&e);
-            Err(e)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::parser::parser::*;
     use super::*;
+    use crate::parser::parser::*;
 
     #[test]
     fn evaluate_works() {
@@ -203,7 +198,10 @@ mod tests {
             ("1+(2*3)", LoxObject::Number(7.0)),
             ("(3*4)/2", LoxObject::Number(6.0)),
             ("3*4/2", LoxObject::Number(6.0)),
-            ("\"Hello\" + \" \" + \"World\"", LoxObject::Str(String::from("Hello World"))),
+            (
+                "\"Hello\" + \" \" + \"World\"",
+                LoxObject::Str(String::from("Hello World")),
+            ),
             ("true", LoxObject::Boolean(true)),
             ("false", LoxObject::Boolean(false)),
             ("nil", LoxObject::Nil),
@@ -213,7 +211,9 @@ mod tests {
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
             let expr = parser.parse().unwrap();
-            let result = interpret(&expr).unwrap();
+
+            let interpreter = Interpreter;
+            let result = interpreter.interpret(&expr).unwrap();
             assert_eq!(result, expected_result);
         }
     }
@@ -231,7 +231,8 @@ mod tests {
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
             let expr = parser.parse().unwrap();
-            match interpret(&expr) {
+            let interpreter = Interpreter;
+            match interpreter.interpret(&expr) {
                 Err(_) => (),
                 Ok(r) => panic!("Expected expression to return runtime error, not: {}", r),
             }

@@ -19,19 +19,21 @@ pub enum Expr {
     },
 }
 
-pub fn accept<T, R>(expr: &Box<Expr>, visitor: &T) -> R
-where
-    T: Visitor<R>,
-{
-    match &**expr {
-        Expr::Binary {
-            left,
-            operator,
-            right,
-        } => visitor.visit_binary_expr(&left, &operator, &right),
-        Expr::Grouping { expression } => visitor.visit_grouping_expr(&expression),
-        Expr::Literal { value } => visitor.visit_literal_expr(&value),
-        Expr::Unary { operator, right } => visitor.visit_unary_expr(&operator, &right),
+impl Expr {
+    pub fn accept<T, R>(&self, visitor: &T) -> R
+    where
+        T: Visitor<R>,
+    {
+        match self {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => visitor.visit_binary_expr(&left, &operator, &right),
+            Expr::Grouping { expression } => visitor.visit_grouping_expr(&expression),
+            Expr::Literal { value } => visitor.visit_literal_expr(&value),
+            Expr::Unary { operator, right } => visitor.visit_unary_expr(&operator, &right),
+        }
     }
 }
 
@@ -67,7 +69,7 @@ fn parenthesize(ast_printer: &AstPrinter, name: &str, expressions: &Vec<&Box<Exp
 
     for expr in expressions {
         sequence.push_str(" ");
-        sequence.push_str(accept(expr, ast_printer).as_str());
+        sequence.push_str(expr.accept(ast_printer).as_str());
     }
 
     sequence.push_str(")");
@@ -76,7 +78,7 @@ fn parenthesize(ast_printer: &AstPrinter, name: &str, expressions: &Vec<&Box<Exp
 
 pub fn format_ast(expr: &Box<Expr>) -> String {
     let printer = AstPrinter;
-    accept(expr, &printer)
+    expr.accept(&printer)
 }
 
 impl fmt::Display for &Box<Expr> {

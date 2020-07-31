@@ -5,6 +5,10 @@ mod error;
 mod interpreter;
 mod parser;
 
+use interpreter::interpreter::Interpreter;
+use parser::parser::Parser;
+use parser::scanner::Scanner;
+
 pub struct Lox {
     had_error: bool,
     had_runtime_error: bool,
@@ -46,12 +50,13 @@ impl Lox {
     }
 
     fn run(&mut self, source: &str) {
-        let mut scanner = parser::scanner::Scanner::new(source);
+        let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens();
-        let mut parser = parser::parser::Parser::new(tokens);
+        let mut parser = Parser::new(tokens);
         match parser.parse() {
             Ok(expr) => {
-                match interpreter::interpreter::interpret(&expr) {
+                let interpreter = Interpreter;
+                match interpreter.interpret(&expr) {
                     Ok(result) => {
                         println!("{}", result);
                     },
