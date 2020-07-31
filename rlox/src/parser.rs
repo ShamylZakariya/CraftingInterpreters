@@ -1,31 +1,9 @@
-use std::fmt;
-
 use crate::error;
 use crate::expr::*;
 use crate::scanner::*;
 
-pub type Result<T> = std::result::Result<T, ParseError>;
+pub type Result<T> = std::result::Result<T, error::ParseError>;
 
-#[derive(Debug, Clone)]
-pub struct ParseError {
-    pub token: Token,
-    pub message: String,
-}
-
-impl ParseError {
-    fn new(token: Token, message: &str) -> Self {
-        Self {
-            token: token,
-            message: message.to_owned(),
-        }
-    }
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "token: {} error:\"{}\"", self.token, self.message)
-    }
-}
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -201,9 +179,9 @@ impl Parser {
 
     // Error reporting, handling
 
-    fn error(&self, token: &Token, message: &str) -> ParseError {
-        error::parse_error_at_token(token, message);
-        ParseError::new(token.clone(), message)
+    fn error(&self, token: &Token, message: &str) -> error::ParseError {
+        error::report::parse_error_at_token(token, message);
+        error::ParseError::new(token.clone(), message)
     }
 
     fn synchronize(&mut self) {

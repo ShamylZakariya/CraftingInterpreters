@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::error;
 use crate::expr::*;
-use crate::scanner::{Literal, Scanner, Token, TokenType};
+use crate::scanner::{Literal, Token, TokenType};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LoxObject {
@@ -51,30 +51,8 @@ impl fmt::Display for LoxObject {
 
 //-------------
 
+use error::RuntimeError as RuntimeError;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
-
-#[derive(Debug, Clone)]
-pub struct RuntimeError {
-    pub token: Token,
-    pub message: String,
-}
-
-impl RuntimeError {
-    fn new(token: &Token, message: &str) -> Self {
-        Self {
-            token: token.to_owned(),
-            message: message.to_owned(),
-        }
-    }
-}
-
-impl fmt::Display for RuntimeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "token: {} error:\"{}\"", self.token, self.message)
-    }
-}
-
-//-------------
 
 pub struct Interpreter;
 impl Interpreter {
@@ -82,7 +60,7 @@ impl Interpreter {
         match expr.accept(self) {
             Ok(result) => Ok(result),
             Err(e) => {
-                error::runtime_error(&e);
+                error::report::runtime_error(&e);
                 Err(e)
             }
         }
@@ -188,7 +166,8 @@ impl Visitor<Result<LoxObject>> for Interpreter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::*;
+    use crate::parser;
+    use crate::scanner;
 
     #[test]
     fn evaluate_works() {
@@ -207,9 +186,9 @@ mod tests {
             ("nil", LoxObject::Nil),
         ];
         for (expression, expected_result) in inputs {
-            let mut scanner = Scanner::new(expression);
+            let mut scanner = scanner::Scanner::new(expression);
             let tokens = scanner.scan_tokens();
-            let mut parser = Parser::new(tokens);
+            let mut parser = parser::Parser::new(tokens);
             let expr = parser.parse().unwrap();
 
             let interpreter = Interpreter;
@@ -227,9 +206,9 @@ mod tests {
             "4 + \"Hello\"",
         ];
         for expression in inputs {
-            let mut scanner = Scanner::new(expression);
+            let mut scanner = scanner::Scanner::new(expression);
             let tokens = scanner.scan_tokens();
-            let mut parser = Parser::new(tokens);
+            let mut parser = parser::Parser::new(tokens);
             let expr = parser.parse().unwrap();
             let interpreter = Interpreter;
             match interpreter.interpret(&expr) {
