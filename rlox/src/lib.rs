@@ -2,12 +2,14 @@ use std::io::Write;
 use std::{fs, io};
 
 mod error;
+mod expr;
 mod interpreter;
 mod parser;
+mod scanner;
 
-use interpreter::interpreter::Interpreter;
-use parser::parser::Parser;
-use parser::scanner::Scanner;
+use crate::interpreter::Interpreter;
+use crate::parser::Parser;
+use crate::scanner::Scanner;
 
 pub struct Lox {
     had_error: bool,
@@ -16,7 +18,10 @@ pub struct Lox {
 
 impl Lox {
     pub fn new() -> Lox {
-        Lox { had_error: false, had_runtime_error: false }
+        Lox {
+            had_error: false,
+            had_runtime_error: false,
+        }
     }
 
     pub fn run_file(&mut self, file: &str) {
@@ -59,12 +64,11 @@ impl Lox {
                 match interpreter.interpret(&expr) {
                     Ok(result) => {
                         println!("{}", result);
-                    },
+                    }
                     Err(_) => {
                         self.had_runtime_error = true;
                     }
                 }
-
             }
             Err(e) => {
                 eprintln!("Error: {}", e);

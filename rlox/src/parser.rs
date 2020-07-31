@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::error;
-use crate::parser::expr::*;
-use crate::parser::scanner::*;
+use crate::expr::*;
+use crate::scanner::*;
 
 pub type Result<T> = std::result::Result<T, ParseError>;
 
@@ -48,17 +48,17 @@ impl Parser {
     fn primary(&mut self) -> Result<Box<Expr>> {
         if self.match_token(&vec![TokenType::False]) {
             return Ok(Box::new(Expr::Literal {
-                value: crate::parser::scanner::Literal::False,
+                value: crate::scanner::Literal::False,
             }));
         }
         if self.match_token(&vec![TokenType::True]) {
             return Ok(Box::new(Expr::Literal {
-                value: crate::parser::scanner::Literal::True,
+                value: crate::scanner::Literal::True,
             }));
         }
         if self.match_token(&vec![TokenType::Nil]) {
             return Ok(Box::new(Expr::Literal {
-                value: crate::parser::scanner::Literal::Nil,
+                value: crate::scanner::Literal::Nil,
             }));
         }
         if self.match_token(&vec![TokenType::Number, TokenType::Str]) {

@@ -1,5 +1,5 @@
-use crate::parser::scanner::{Token, TokenType};
-use crate::interpreter::interpreter::RuntimeError;
+use crate::interpreter::RuntimeError;
+use crate::scanner::{Token, TokenType};
 
 pub fn report(line: i32, context: &str, message: &str) {
     eprintln!("[line {}] Error {}: {}", line, context, message);
@@ -20,6 +20,6 @@ pub fn parse_error_at_token(token: &Token, message: &str) {
     }
 }
 
-pub fn runtime_error(e:&RuntimeError) {
+pub fn runtime_error(e: &RuntimeError) {
     eprintln!("{}\n[line {}]", e.message, e.token.line);
 }

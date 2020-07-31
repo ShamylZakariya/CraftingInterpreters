@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::error;
-use crate::parser::expr::*;
-use crate::parser::scanner::{Literal, Scanner, Token, TokenType};
+use crate::expr::*;
+use crate::scanner::{Literal, Scanner, Token, TokenType};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LoxObject {
@@ -12,7 +12,7 @@ pub enum LoxObject {
     Nil,
 }
 impl LoxObject {
-    fn from_literal(literal: &crate::parser::scanner::Literal) -> Self {
+    fn from_literal(literal: &crate::scanner::Literal) -> Self {
         match literal {
             Literal::Number(n) => LoxObject::Number(*n),
             Literal::Str(s) => LoxObject::Str(s.clone()),
@@ -165,7 +165,7 @@ impl Visitor<Result<LoxObject>> for Interpreter {
         self.interpret(expr)
     }
 
-    fn visit_literal_expr(&self, literal: &crate::parser::scanner::Literal) -> Result<LoxObject> {
+    fn visit_literal_expr(&self, literal: &crate::scanner::Literal) -> Result<LoxObject> {
         Ok(LoxObject::from_literal(literal))
     }
 
@@ -188,7 +188,7 @@ impl Visitor<Result<LoxObject>> for Interpreter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::parser::*;
+    use crate::parser::*;
 
     #[test]
     fn evaluate_works() {

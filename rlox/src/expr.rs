@@ -1,4 +1,4 @@
-use crate::parser::scanner::*;
+use crate::scanner::*;
 use std::fmt;
 
 pub enum Expr {
@@ -11,7 +11,7 @@ pub enum Expr {
         expression: Box<Expr>,
     },
     Literal {
-        value: crate::parser::scanner::Literal,
+        value: crate::scanner::Literal,
     },
     Unary {
         operator: Token,
@@ -40,7 +40,7 @@ impl Expr {
 pub trait Visitor<R> {
     fn visit_binary_expr(&self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
     fn visit_grouping_expr(&self, expr: &Box<Expr>) -> R;
-    fn visit_literal_expr(&self, literal: &crate::parser::scanner::Literal) -> R;
+    fn visit_literal_expr(&self, literal: &crate::scanner::Literal) -> R;
     fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> R;
 }
 
@@ -54,7 +54,7 @@ impl Visitor<String> for AstPrinter {
         parenthesize(&self, "group", &vec![expr])
     }
 
-    fn visit_literal_expr(&self, literal: &crate::parser::scanner::Literal) -> String {
+    fn visit_literal_expr(&self, literal: &crate::scanner::Literal) -> String {
         literal.to_string()
     }
 
@@ -97,13 +97,13 @@ mod tests {
             left: Box::new(Expr::Unary {
                 operator: Token::new(TokenType::Minus, String::from("-"), None, 1),
                 right: Box::new(Expr::Literal {
-                    value: crate::parser::scanner::Literal::Number(123 as f64),
+                    value: crate::scanner::Literal::Number(123 as f64),
                 }),
             }),
             operator: Token::new(TokenType::Star, String::from("*"), None, 1),
             right: Box::new(Expr::Grouping {
                 expression: Box::new(Expr::Literal {
-                    value: crate::parser::scanner::Literal::Number(45.67),
+                    value: crate::scanner::Literal::Number(45.67),
                 }),
             }),
         });
