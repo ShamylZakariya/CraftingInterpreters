@@ -61,7 +61,9 @@ impl Parser {
         }
 
         if self.match_token(TokenType::Identifier) {
-            return Ok(Box::new(Expr::Variable{ name: self.previous().clone() }));
+            return Ok(Box::new(Expr::Variable {
+                name: self.previous().clone(),
+            }));
         }
 
         if self.match_token(TokenType::LeftParen) {
@@ -185,14 +187,22 @@ impl Parser {
     }
 
     fn var_declaration(&mut self) -> Result<Box<Stmt>> {
-        let name = self.consume(TokenType::Identifier, "Expect variable name.")?;
+        let name = self
+            .consume(TokenType::Identifier, "Expect variable name.")?
+            .clone();
 
-        let mut initializer:Option<Box<Expr>> = None;
+        let mut initializer: Option<Box<Expr>> = None;
         if self.match_token(TokenType::Equal) {
             initializer = Some(self.expression()?);
         }
-        self.consume(TokenType::Semicolon, "Expect \";\" after variable declaration.")?;
-        Ok(Box::new(Stmt::Var{ name: *name, initializer: initializer }))
+        self.consume(
+            TokenType::Semicolon,
+            "Expect \";\" after variable declaration.",
+        )?;
+        Ok(Box::new(Stmt::Var {
+            name: name,
+            initializer: initializer,
+        }))
     }
 
     fn expression_statement(&mut self) -> Result<Box<Stmt>> {
@@ -325,18 +335,18 @@ mod tests {
                             operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
                             right: Box::new(Expr::Literal {
                                 value: Literal::Number(2.0),
-                            })
+                            }),
                         }),
                         operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
                         right: Box::new(Expr::Literal {
                             value: Literal::Number(3.0),
-                        })
+                        }),
                     }),
                     operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
                     right: Box::new(Expr::Literal {
                         value: Literal::Number(4.0),
-                    })
-                })
+                    }),
+                }),
             ),
             (
                 "5 == nil",
@@ -348,7 +358,7 @@ mod tests {
                     right: Box::new(Expr::Literal {
                         value: Literal::Nil,
                     }),
-                })
+                }),
             ),
         ];
 
@@ -363,7 +373,7 @@ mod tests {
 
     #[test]
     fn fails_to_parse_bad_expressions() {
-        let expressions = vec!["1 + (5/2", "a = foo"];
+        let expressions = vec!["1 + (5/2"];
 
         for expression in expressions {
             let mut scanner = Scanner::new(expression);

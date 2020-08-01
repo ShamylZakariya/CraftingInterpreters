@@ -1,7 +1,7 @@
-use crate::scanner::Token;
 use crate::expr::*;
+use crate::scanner::Token;
 
-#[derive(Clone,PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Stmt {
     Expression {
         expression: Box<Expr>,
@@ -12,7 +12,7 @@ pub enum Stmt {
     Var {
         name: Token,
         initializer: Option<Box<Expr>>,
-    }
+    },
 }
 
 impl Stmt {
@@ -21,9 +21,9 @@ impl Stmt {
         T: StmtVisitor<R>,
     {
         match self {
-            Stmt::Expression { expression } => visitor.visit_expression_stmt( &expression ),
-            Stmt::Print { expression } => visitor.visit_print_stmt( &expression ),
-            Stmt::Var { name, initializer } => visitor.visit_var_stmt( &name, &initializer ),
+            Stmt::Expression { expression } => visitor.visit_expression_stmt(&expression),
+            Stmt::Print { expression } => visitor.visit_print_stmt(&expression),
+            Stmt::Var { name, initializer } => visitor.visit_var_stmt(&name, &initializer),
         }
     }
 }

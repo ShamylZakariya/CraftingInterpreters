@@ -1,9 +1,10 @@
 use std::fmt;
 
+use crate::environment::Environment;
 use crate::error;
 use crate::expr::*;
-use crate::stmt::*;
 use crate::scanner::{Literal, Token, TokenType};
+use crate::stmt::*;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LoxObject {
@@ -52,12 +53,20 @@ impl fmt::Display for LoxObject {
 
 //-------------
 
-use error::RuntimeError as RuntimeError;
+use error::RuntimeError;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
-pub struct Interpreter;
+pub struct Interpreter {
+    environment: Box<Environment>,
+}
 impl Interpreter {
-    pub fn interpret(&mut self, statements:&Vec<Box<Stmt>>) -> Result<()> {
+    pub fn new() -> Self {
+        Interpreter {
+            environment: Box::new(Environment::new()),
+        }
+    }
+
+    pub fn interpret(&mut self, statements: &Vec<Box<Stmt>>) -> Result<()> {
         for statement in statements {
             if let Err(e) = self.execute(statement) {
                 error::report::runtime_error(&e);
@@ -77,10 +86,9 @@ impl Interpreter {
         }
     }
 
-    pub fn execute(&mut self, stmt:&Box<Stmt>) -> Result<()> {
+    pub fn execute(&mut self, stmt: &Box<Stmt>) -> Result<()> {
         stmt.accept(self)
     }
-
 }
 
 impl ExprVisitor<Result<LoxObject>> for Interpreter {
@@ -177,6 +185,10 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
             _ => Err(RuntimeError::new(operator, "Unsupported unary operator.")),
         }
     }
+
+    fn visit_variable_expr(&mut self, name: &Token) -> Result<LoxObject> {
+        self.environment.get(name)
+    }
 }
 
 impl StmtVisitor<Result<()>> for Interpreter {
@@ -193,6 +205,14 @@ impl StmtVisitor<Result<()>> for Interpreter {
         Ok(())
     }
 
+    fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Box<Expr>>) -> Result<()> {
+        let mut value = LoxObject::Nil;
+        if let Some(initializer) = initializer {
+            value = self.evaluate(initializer)?;
+        }
+        self.environment.define(&name.lexeme, value);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -223,7 +243,7 @@ mod tests {
             let mut parser = parser::Parser::new(tokens);
             let expr = parser.parse_expression().unwrap();
 
-            let mut interpreter = Interpreter;
+            let mut interpreter = Interpreter::new();
             let result = interpreter.evaluate(&expr).unwrap();
             assert_eq!(result, expected_result);
         }
@@ -242,7 +262,7 @@ mod tests {
             let tokens = scanner.scan_tokens();
             let mut parser = parser::Parser::new(tokens);
             let expr = parser.parse_expression().unwrap();
-            let mut interpreter = Interpreter;
+            let mut interpreter = Interpreter::new();
             match interpreter.evaluate(&expr) {
                 Err(_) => (),
                 Ok(r) => panic!("Expected expression to return runtime error, not: {}", r),

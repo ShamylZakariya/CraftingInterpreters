@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::{fs, io};
 
+mod environment;
 mod error;
 mod expr;
 mod interpreter;
@@ -15,6 +16,7 @@ use crate::scanner::Scanner;
 pub struct Lox {
     had_error: bool,
     had_runtime_error: bool,
+    interpreter: Interpreter,
 }
 
 impl Lox {
@@ -22,6 +24,7 @@ impl Lox {
         Lox {
             had_error: false,
             had_runtime_error: false,
+            interpreter: Interpreter::new(),
         }
     }
 
@@ -60,15 +63,12 @@ impl Lox {
         let tokens = scanner.scan_tokens();
         let mut parser = Parser::new(tokens);
         match parser.parse() {
-            Ok(statements) => {
-                let mut interpreter = Interpreter;
-                match interpreter.interpret(&statements) {
-                    Ok(()) => (),
-                    Err(_) => {
-                        self.had_runtime_error = true;
-                    }
+            Ok(statements) => match self.interpreter.interpret(&statements) {
+                Ok(()) => (),
+                Err(_) => {
+                    self.had_runtime_error = true;
                 }
-            }
+            },
             Err(e) => {
                 eprintln!("Error: {}", e);
                 self.had_error = true;
