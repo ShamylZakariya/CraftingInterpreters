@@ -1,5 +1,4 @@
 use crate::scanner::*;
-use std::fmt;
 
 pub enum Expr {
     Binary {
@@ -42,71 +41,4 @@ pub trait Visitor<R> {
     fn visit_grouping_expr(&self, expr: &Box<Expr>) -> R;
     fn visit_literal_expr(&self, literal: &crate::scanner::Literal) -> R;
     fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> R;
-}
-
-pub struct AstPrinter;
-impl Visitor<String> for AstPrinter {
-    fn visit_binary_expr(&self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> String {
-        parenthesize(&self, operator.lexeme.as_str(), &vec![left, right])
-    }
-
-    fn visit_grouping_expr(&self, expr: &Box<Expr>) -> String {
-        parenthesize(&self, "group", &vec![expr])
-    }
-
-    fn visit_literal_expr(&self, literal: &crate::scanner::Literal) -> String {
-        literal.to_string()
-    }
-
-    fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> String {
-        parenthesize(&self, operator.lexeme.as_str(), &vec![right])
-    }
-}
-
-fn parenthesize(ast_printer: &AstPrinter, name: &str, expressions: &Vec<&Box<Expr>>) -> String {
-    let mut sequence = String::from("(");
-    sequence.push_str(name);
-
-    for expr in expressions {
-        sequence.push_str(" ");
-        sequence.push_str(expr.accept(ast_printer).as_str());
-    }
-
-    sequence.push_str(")");
-    return sequence;
-}
-
-pub fn format_ast(expr: &Box<Expr>) -> String {
-    let printer = AstPrinter;
-    expr.accept(&printer)
-}
-
-impl fmt::Display for &Box<Expr> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", format_ast(self))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn print_ast_works() {
-        let root = Box::new(Expr::Binary {
-            left: Box::new(Expr::Unary {
-                operator: Token::new(TokenType::Minus, String::from("-"), None, 1),
-                right: Box::new(Expr::Literal {
-                    value: crate::scanner::Literal::Number(123 as f64),
-                }),
-            }),
-            operator: Token::new(TokenType::Star, String::from("*"), None, 1),
-            right: Box::new(Expr::Grouping {
-                expression: Box::new(Expr::Literal {
-                    value: crate::scanner::Literal::Number(45.67),
-                }),
-            }),
-        });
-        assert_eq!(format_ast(&root), "(* (- 123) (group 45.67))");
-    }
 }

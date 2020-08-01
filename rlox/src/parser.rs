@@ -223,25 +223,11 @@ mod tests {
             "false == true;",
         ];
 
-        let expected_asts = vec![
-            "(+ 1 (group (/ 5 2)))",
-            "(+ (+ (+ 1 2) 3) 4)",
-            "(== 5 Nil)",
-            "(>= 1 3)",
-            "(< Nil 10)",
-            "(== False True)",
-        ];
-
-        for (expression, expected_ast) in expressions.iter().zip(expected_asts) {
+        for expression in expressions {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            if let Ok(root) = parser.expression() {
-                let ast = format_ast(&root);
-                assert_eq!(ast, expected_ast);
-            } else {
-                panic!("Failed to parse a valid expression.");
-            }
+            parser.expression().unwrap();
         }
     }
 
