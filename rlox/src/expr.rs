@@ -1,5 +1,6 @@
 use crate::scanner::*;
 
+#[derive(Clone,PartialEq, Eq, Debug)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -19,9 +20,9 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn accept<T, R>(&self, visitor: &T) -> R
+    pub fn accept<T, R>(&self, visitor: &mut T) -> R
     where
-        T: Visitor<R>,
+        T: ExprVisitor<R>,
     {
         match self {
             Expr::Binary {
@@ -36,9 +37,11 @@ impl Expr {
     }
 }
 
-pub trait Visitor<R> {
-    fn visit_binary_expr(&self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
-    fn visit_grouping_expr(&self, expr: &Box<Expr>) -> R;
-    fn visit_literal_expr(&self, literal: &crate::scanner::Literal) -> R;
-    fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> R;
+// -----------------------------------------------------------------------
+
+pub trait ExprVisitor<R> {
+    fn visit_binary_expr(&mut self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
+    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> R;
+    fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> R;
+    fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> R;
 }

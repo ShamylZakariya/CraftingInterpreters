@@ -6,6 +6,7 @@ mod expr;
 mod interpreter;
 mod parser;
 mod scanner;
+mod stmt;
 
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
@@ -59,12 +60,10 @@ impl Lox {
         let tokens = scanner.scan_tokens();
         let mut parser = Parser::new(tokens);
         match parser.parse() {
-            Ok(expr) => {
-                let interpreter = Interpreter;
-                match interpreter.interpret(&expr) {
-                    Ok(result) => {
-                        println!("{}", result);
-                    }
+            Ok(statements) => {
+                let mut interpreter = Interpreter;
+                match interpreter.interpret(&statements) {
+                    Ok(()) => (),
                     Err(_) => {
                         self.had_runtime_error = true;
                     }

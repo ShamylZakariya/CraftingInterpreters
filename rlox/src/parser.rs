@@ -1,9 +1,9 @@
 use crate::error;
 use crate::expr::*;
 use crate::scanner::*;
+use crate::stmt::*;
 
 pub type Result<T> = std::result::Result<T, error::ParseError>;
-
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -18,33 +18,45 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Box<Expr>> {
+    pub fn parse(&mut self) -> Result<Vec<Box<Stmt>>> {
+        let mut statements: Vec<Box<Stmt>> = vec![];
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
+        }
+        Ok(statements)
+    }
+
+    /// Parse the tokens as an expression, returning the computed expression tree.
+    /// This is for testing, not running whole programs.
+    #[allow(dead_code)]
+    pub fn parse_expression(&mut self) -> Result<Box<Expr>> {
         self.expression()
     }
 
-    // Recursive descent, ordered by associativity
+    // Expressions
+
     fn primary(&mut self) -> Result<Box<Expr>> {
-        if self.match_token(&vec![TokenType::False]) {
+        if self.match_token(TokenType::False) {
             return Ok(Box::new(Expr::Literal {
                 value: crate::scanner::Literal::False,
             }));
         }
-        if self.match_token(&vec![TokenType::True]) {
+        if self.match_token(TokenType::True) {
             return Ok(Box::new(Expr::Literal {
                 value: crate::scanner::Literal::True,
             }));
         }
-        if self.match_token(&vec![TokenType::Nil]) {
+        if self.match_token(TokenType::Nil) {
             return Ok(Box::new(Expr::Literal {
                 value: crate::scanner::Literal::Nil,
             }));
         }
-        if self.match_token(&vec![TokenType::Number, TokenType::Str]) {
+        if self.match_tokens(&vec![TokenType::Number, TokenType::Str]) {
             if let Some(l) = self.previous().clone().literal {
                 return Ok(Box::new(Expr::Literal { value: l }));
             }
         }
-        if self.match_token(&vec![TokenType::LeftParen]) {
+        if self.match_token(TokenType::LeftParen) {
             let expr = self.expression()?;
             self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
             return Ok(Box::new(Expr::Grouping { expression: expr }));
@@ -54,7 +66,7 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Box<Expr>> {
-        if self.match_token(&vec![TokenType::Bang, TokenType::Minus]) {
+        if self.match_tokens(&vec![TokenType::Bang, TokenType::Minus]) {
             let op = self.previous().clone();
             let right = self.unary()?;
             return Ok(Box::new(Expr::Unary {
@@ -67,7 +79,7 @@ impl Parser {
 
     fn multiplication(&mut self) -> Result<Box<Expr>> {
         let mut expr = self.unary()?;
-        while self.match_token(&vec![TokenType::Slash, TokenType::Star]) {
+        while self.match_tokens(&vec![TokenType::Slash, TokenType::Star]) {
             let op = self.previous().clone();
             let right = self.unary()?;
             expr = Box::new(Expr::Binary {
@@ -81,7 +93,7 @@ impl Parser {
 
     fn addition(&mut self) -> Result<Box<Expr>> {
         let mut expr = self.multiplication()?;
-        while self.match_token(&vec![TokenType::Minus, TokenType::Plus]) {
+        while self.match_tokens(&vec![TokenType::Minus, TokenType::Plus]) {
             let op = self.previous().clone();
             let right = self.multiplication()?;
             expr = Box::new(Expr::Binary {
@@ -95,7 +107,7 @@ impl Parser {
 
     fn comparison(&mut self) -> Result<Box<Expr>> {
         let mut expr = self.addition()?;
-        while self.match_token(&vec![
+        while self.match_tokens(&vec![
             TokenType::Greater,
             TokenType::GreaterEqual,
             TokenType::Less,
@@ -114,7 +126,7 @@ impl Parser {
 
     fn equality(&mut self) -> Result<Box<Expr>> {
         let mut expr = self.comparison()?;
-        while self.match_token(&vec![TokenType::BangEqual, TokenType::EqualEqual]) {
+        while self.match_tokens(&vec![TokenType::BangEqual, TokenType::EqualEqual]) {
             let op = self.previous().clone();
             let right = self.comparison()?;
             expr = Box::new(Expr::Binary {
@@ -128,6 +140,28 @@ impl Parser {
 
     fn expression(&mut self) -> Result<Box<Expr>> {
         self.equality()
+    }
+
+    // Statements
+
+    fn statement(&mut self) -> Result<Box<Stmt>> {
+        if self.match_token(TokenType::Print) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<Box<Stmt>> {
+        let value = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect \";\" after value.")?;
+        Ok(Box::new(Stmt::Print { expression: value }))
+    }
+
+    fn expression_statement(&mut self) -> Result<Box<Stmt>> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect \";\" after expression.")?;
+        Ok(Box::new(Stmt::Expression { expression: expr }))
     }
 
     // Helpers
@@ -159,7 +193,15 @@ impl Parser {
         self.peek().token_type == TokenType::Eof
     }
 
-    fn match_token(&mut self, types: &Vec<TokenType>) -> bool {
+    fn match_token(&mut self, t: TokenType) -> bool {
+        if self.check(t) {
+            self.advance();
+            return true;
+        }
+        false
+    }
+
+    fn match_tokens(&mut self, types: &Vec<TokenType>) -> bool {
         for t in types {
             if self.check(*t) {
                 self.advance();
@@ -215,19 +257,70 @@ mod tests {
     #[test]
     fn parses_expressions() {
         let expressions = vec![
-            "1 + (5/2)",
-            "1 + 2 + 3 + 4",
-            "5 == nil",
-            "1 >= 3",
-            "nil < 10",
-            "false == true;",
+            (
+                "1 + (5/2)",
+                Box::new(Expr::Binary {
+                    left: Box::new(Expr::Literal {
+                        value: Literal::Number(1.0),
+                    }),
+                    operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                    right: Box::new(Expr::Grouping {
+                        expression: Box::new(Expr::Binary {
+                            left: Box::new(Expr::Literal {
+                                value: Literal::Number(5.0),
+                            }),
+                            operator: Token::new(TokenType::Slash, String::from("/"), None, 1),
+                            right: Box::new(Expr::Literal {
+                                value: Literal::Number(2.0),
+                            }),
+                        }),
+                    }),
+                }),
+            ),
+            (
+                "1 + 2 + 3 + 4",
+                Box::new(Expr::Binary {
+                    left: Box::new(Expr::Binary {
+                        left: Box::new(Expr::Binary {
+                            left: Box::new(Expr::Literal {
+                                value: Literal::Number(1.0),
+                            }),
+                            operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                            right: Box::new(Expr::Literal {
+                                value: Literal::Number(2.0),
+                            })
+                        }),
+                        operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                        right: Box::new(Expr::Literal {
+                            value: Literal::Number(3.0),
+                        })
+                    }),
+                    operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                    right: Box::new(Expr::Literal {
+                        value: Literal::Number(4.0),
+                    })
+                })
+            ),
+            (
+                "5 == nil",
+                Box::new(Expr::Binary {
+                    left: Box::new(Expr::Literal {
+                        value: Literal::Number(5.0),
+                    }),
+                    operator: Token::new(TokenType::EqualEqual, String::from("=="), None, 1),
+                    right: Box::new(Expr::Literal {
+                        value: Literal::Nil,
+                    }),
+                })
+            ),
         ];
 
-        for expression in expressions {
+        for (expression, expected_ast) in expressions {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            parser.expression().unwrap();
+            let parsed = parser.expression().unwrap();
+            assert_eq!(parsed, expected_ast);
         }
     }
 

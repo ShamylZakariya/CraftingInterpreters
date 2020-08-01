@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::error;
 use crate::expr::*;
+use crate::stmt::*;
 use crate::scanner::{Literal, Token, TokenType};
 
 #[derive(PartialEq, Debug, Clone)]
@@ -56,7 +57,17 @@ pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 pub struct Interpreter;
 impl Interpreter {
-    pub fn interpret(&self, expr: &Box<Expr>) -> Result<LoxObject> {
+    pub fn interpret(&mut self, statements:&Vec<Box<Stmt>>) -> Result<()> {
+        for statement in statements {
+            if let Err(e) = self.execute(statement) {
+                error::report::runtime_error(&e);
+                return Err(e);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn evaluate(&mut self, expr: &Box<Expr>) -> Result<LoxObject> {
         match expr.accept(self) {
             Ok(result) => Ok(result),
             Err(e) => {
@@ -65,17 +76,22 @@ impl Interpreter {
             }
         }
     }
+
+    pub fn execute(&mut self, stmt:&Box<Stmt>) -> Result<()> {
+        stmt.accept(self)
+    }
+
 }
 
-impl Visitor<Result<LoxObject>> for Interpreter {
+impl ExprVisitor<Result<LoxObject>> for Interpreter {
     fn visit_binary_expr(
-        &self,
+        &mut self,
         left: &Box<Expr>,
         operator: &Token,
         right: &Box<Expr>,
     ) -> Result<LoxObject> {
-        let left = self.interpret(left)?;
-        let right = self.interpret(right)?;
+        let left = self.evaluate(left)?;
+        let right = self.evaluate(right)?;
         match operator.token_type {
             TokenType::Minus => {
                 if let LoxObject::Number(l) = left {
@@ -139,16 +155,16 @@ impl Visitor<Result<LoxObject>> for Interpreter {
         }
     }
 
-    fn visit_grouping_expr(&self, expr: &Box<Expr>) -> Result<LoxObject> {
-        self.interpret(expr)
+    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> Result<LoxObject> {
+        self.evaluate(expr)
     }
 
-    fn visit_literal_expr(&self, literal: &crate::scanner::Literal) -> Result<LoxObject> {
+    fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> Result<LoxObject> {
         Ok(LoxObject::from_literal(literal))
     }
 
-    fn visit_unary_expr(&self, operator: &Token, right: &Box<Expr>) -> Result<LoxObject> {
-        let right = self.interpret(right)?;
+    fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> Result<LoxObject> {
+        let right = self.evaluate(right)?;
         match operator.token_type {
             TokenType::Bang => Ok(LoxObject::Boolean(!right.is_truthy())),
             TokenType::Minus => match right {
@@ -161,6 +177,22 @@ impl Visitor<Result<LoxObject>> for Interpreter {
             _ => Err(RuntimeError::new(operator, "Unsupported unary operator.")),
         }
     }
+}
+
+impl StmtVisitor<Result<()>> for Interpreter {
+    fn visit_expression_stmt(&mut self, expression: &Box<Expr>) -> Result<()> {
+        match self.evaluate(expression) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn visit_print_stmt(&mut self, expression: &Box<Expr>) -> Result<()> {
+        let value = self.evaluate(expression)?;
+        println!("{}", value);
+        Ok(())
+    }
+
 }
 
 #[cfg(test)]
@@ -189,10 +221,10 @@ mod tests {
             let mut scanner = scanner::Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = parser::Parser::new(tokens);
-            let expr = parser.parse().unwrap();
+            let expr = parser.parse_expression().unwrap();
 
-            let interpreter = Interpreter;
-            let result = interpreter.interpret(&expr).unwrap();
+            let mut interpreter = Interpreter;
+            let result = interpreter.evaluate(&expr).unwrap();
             assert_eq!(result, expected_result);
         }
     }
@@ -209,9 +241,9 @@ mod tests {
             let mut scanner = scanner::Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = parser::Parser::new(tokens);
-            let expr = parser.parse().unwrap();
-            let interpreter = Interpreter;
-            match interpreter.interpret(&expr) {
+            let expr = parser.parse_expression().unwrap();
+            let mut interpreter = Interpreter;
+            match interpreter.evaluate(&expr) {
                 Err(_) => (),
                 Ok(r) => panic!("Expected expression to return runtime error, not: {}", r),
             }
