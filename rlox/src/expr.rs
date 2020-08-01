@@ -1,6 +1,6 @@
 use crate::scanner::*;
 
-#[derive(Clone,PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -16,6 +16,9 @@ pub enum Expr {
     Unary {
         operator: Token,
         right: Box<Expr>,
+    },
+    Variable {
+        name: Token,
     },
 }
 
@@ -33,6 +36,7 @@ impl Expr {
             Expr::Grouping { expression } => visitor.visit_grouping_expr(&expression),
             Expr::Literal { value } => visitor.visit_literal_expr(&value),
             Expr::Unary { operator, right } => visitor.visit_unary_expr(&operator, &right),
+            Expr::Variable { name } => visitor.visit_variable_expr(&name),
         }
     }
 }
@@ -44,4 +48,5 @@ pub trait ExprVisitor<R> {
     fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> R;
     fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> R;
     fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> R;
+    fn visit_variable_expr(&mut self, name: &Token) -> R;
 }
