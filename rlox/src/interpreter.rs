@@ -92,6 +92,12 @@ impl Interpreter {
 }
 
 impl ExprVisitor<Result<LoxObject>> for Interpreter {
+    fn visit_assign_expr(&mut self, name: &Token, value: &Box<Expr>) -> Result<LoxObject> {
+        let value = self.evaluate(value)?;
+        self.environment.assign(name, &value)?;
+        Ok(value)
+    }
+
     fn visit_binary_expr(
         &mut self,
         left: &Box<Expr>,
@@ -210,7 +216,7 @@ impl StmtVisitor<Result<()>> for Interpreter {
         if let Some(initializer) = initializer {
             value = self.evaluate(initializer)?;
         }
-        self.environment.define(&name.lexeme, value);
+        self.environment.define(&name.lexeme, &value);
         Ok(())
     }
 }
@@ -222,7 +228,7 @@ mod tests {
     use crate::scanner;
 
     #[test]
-    fn evaluate_works() {
+    fn evaluates_expressions() {
         let inputs = vec![
             ("1+2*3", LoxObject::Number(7.0)),
             ("(1+2)*3", LoxObject::Number(9.0)),
@@ -250,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn bad_expressions_will_not_evaluate() {
+    fn bad_expressions_are_errors() {
         let inputs = vec![
             "\"Hello\" * 4",
             "4 * \"Hello\"",

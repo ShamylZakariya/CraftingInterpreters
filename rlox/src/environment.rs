@@ -15,9 +15,20 @@ impl Environment {
         }
     }
 
-    pub fn define(&mut self, name: &str, value: LoxObject) {
-        println!("Defining \"{}\" as \"{}\"", name, value);
-        self.values.insert(name.to_owned(), value);
+    pub fn define(&mut self, name: &str, value: &LoxObject) {
+        self.values.insert(name.to_owned(), value.clone());
+    }
+
+    pub fn assign(&mut self, name: &Token, value: &LoxObject) -> Result<()> {
+        if self.values.contains_key(&name.lexeme) {
+            self.values.insert(name.lexeme.to_owned(), value.clone());
+            Ok(())
+        } else {
+            Err(RuntimeError::new(
+                name,
+                &format!("Undefined variable \"{}\".", name.lexeme),
+            ))
+        }
     }
 
     pub fn get(&self, name: &Token) -> Result<LoxObject> {
@@ -57,8 +68,27 @@ mod tests {
         ];
 
         for (name, value) in definitions {
-            env.define(&name.lexeme, value.clone());
+            env.define(&name.lexeme, &value);
             assert_eq!(env.get(&name).unwrap(), value);
+        }
+    }
+
+    #[test]
+    fn assign_overwrites() {
+        let mut env = Environment::new();
+        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1);
+        env.define(&name.lexeme, &LoxObject::Number(10.0));
+        env.assign(&name, &LoxObject::Str(String::from("Hello World"))).unwrap();
+        env.assign(&name, &LoxObject::Boolean(false)).unwrap();
+        assert_eq!(env.get(&name).unwrap(), LoxObject::Boolean(false));
+    }
+
+    #[test]
+    fn assign_cant_create_entry() {
+        let mut env = Environment::new();
+        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1);
+        if let Ok(_) = env.assign(&name, &LoxObject::Nil) {
+            panic!("Should not be able to assign to undefined variable.");
         }
     }
 
@@ -66,9 +96,9 @@ mod tests {
     fn define_overwrites() {
         let mut env = Environment::new();
         let name = Token::new(TokenType::Identifier, String::from("a"), None, 1);
-        env.define(&name.lexeme, LoxObject::Number(10.0));
-        env.define(&name.lexeme, LoxObject::Str(String::from("Hello World")));
-        env.define(&name.lexeme, LoxObject::Boolean(false));
+        env.define(&name.lexeme, &LoxObject::Number(10.0));
+        env.define(&name.lexeme, &LoxObject::Str(String::from("Hello World")));
+        env.define(&name.lexeme, &LoxObject::Boolean(false));
 
         assert_eq!(env.get(&name).unwrap(), LoxObject::Boolean(false));
     }

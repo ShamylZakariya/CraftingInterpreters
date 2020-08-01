@@ -149,7 +149,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Box<Expr>> {
-        self.equality()
+        self.assignment()
     }
 
     // Statements
@@ -209,6 +209,27 @@ impl Parser {
         let expr = self.expression()?;
         self.consume(TokenType::Semicolon, "Expect \";\" after expression.")?;
         Ok(Box::new(Stmt::Expression { expression: expr }))
+    }
+
+    fn assignment(&mut self) -> Result<Box<Expr>> {
+        let expr = self.equality()?;
+        if self.match_token(TokenType::Equal) {
+            let equals = self.previous().clone();
+            let value = self.assignment()?;
+
+            match *expr {
+                Expr::Variable { name } => {
+                    return Ok(Box::new(Expr::Assign {
+                        name: name,
+                        value: value,
+                    }));
+                }
+                _ => {
+                    return Err(self.error(&equals, "Invalid assignment target."));
+                }
+            }
+        }
+        Ok(expr)
     }
 
     // Helpers

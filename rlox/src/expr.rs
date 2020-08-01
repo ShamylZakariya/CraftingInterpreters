@@ -2,6 +2,10 @@ use crate::scanner::*;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expr {
+    Assign {
+        name: Token,
+        value: Box<Expr>,
+    },
     Binary {
         left: Box<Expr>,
         operator: Token,
@@ -28,6 +32,7 @@ impl Expr {
         T: ExprVisitor<R>,
     {
         match self {
+            Expr::Assign { name, value } => visitor.visit_assign_expr(&name, &value),
             Expr::Binary {
                 left,
                 operator,
@@ -44,6 +49,7 @@ impl Expr {
 // -----------------------------------------------------------------------
 
 pub trait ExprVisitor<R> {
+    fn visit_assign_expr(&mut self, name: &Token, value: &Box<Expr>) -> R;
     fn visit_binary_expr(&mut self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
     fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> R;
     fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> R;
