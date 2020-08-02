@@ -12,6 +12,7 @@ mod stmt;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
+use crate::stmt::Stmt;
 
 pub struct Lox {
     had_error: bool,
@@ -63,12 +64,33 @@ impl Lox {
         let tokens = scanner.scan_tokens();
         let mut parser = Parser::new(tokens);
         match parser.parse() {
-            Ok(statements) => match self.interpreter.interpret(&statements) {
-                Ok(()) => (),
-                Err(_) => {
-                    self.had_runtime_error = true;
+            Ok(statements) => {
+                let mut did_evaluate_single_expression = false;
+                if statements.len() == 1 {
+                    let first = statements[0].clone();
+                    match *first {
+                        Stmt::Expression { expression } => {
+                            did_evaluate_single_expression = true;
+                            match self.interpreter.evaluate(&expression) {
+                                Ok(r) => println!("{}", r),
+                                Err(_) => {
+                                    self.had_runtime_error = true;
+                                }
+                            }
+                        }
+                        _ => (),
+                    }
                 }
-            },
+
+                if !did_evaluate_single_expression {
+                    match self.interpreter.interpret(&statements) {
+                        Ok(()) => (),
+                        Err(_) => {
+                            self.had_runtime_error = true;
+                        }
+                    }
+                }
+            }
             Err(e) => {
                 eprintln!("Error: {}", e);
                 self.had_error = true;
