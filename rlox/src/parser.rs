@@ -21,7 +21,7 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Vec<Box<Stmt>>> {
         let mut statements: Vec<Box<Stmt>> = vec![];
         while !self.is_at_end() {
-            statements.push(self.declaration()?);
+            statements.push(self.declaration_stmt()?);
         }
         Ok(statements)
     }
@@ -30,12 +30,12 @@ impl Parser {
     /// This is for testing, not running whole programs.
     #[allow(dead_code)]
     pub fn parse_expression(&mut self) -> Result<Box<Expr>> {
-        self.expression()
+        self.expression_expr()
     }
 
     // Expressions
 
-    fn primary(&mut self) -> Result<Box<Expr>> {
+    fn primary_expr(&mut self) -> Result<Box<Expr>> {
         if self.match_token(TokenType::False) {
             return Ok(Box::new(Expr::Literal {
                 value: crate::scanner::Literal::False,
@@ -67,7 +67,7 @@ impl Parser {
         }
 
         if self.match_token(TokenType::LeftParen) {
-            let expr = self.expression()?;
+            let expr = self.expression_expr()?;
             self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
             return Ok(Box::new(Expr::Grouping { expression: expr }));
         }
@@ -75,23 +75,23 @@ impl Parser {
         Err(self.error(self.peek(), "Expect expression"))
     }
 
-    fn unary(&mut self) -> Result<Box<Expr>> {
+    fn unary_expr(&mut self) -> Result<Box<Expr>> {
         if self.match_tokens(&vec![TokenType::Bang, TokenType::Minus]) {
             let op = self.previous().clone();
-            let right = self.unary()?;
+            let right = self.unary_expr()?;
             return Ok(Box::new(Expr::Unary {
                 operator: op,
                 right: right,
             }));
         }
-        self.primary()
+        self.primary_expr()
     }
 
-    fn multiplication(&mut self) -> Result<Box<Expr>> {
-        let mut expr = self.unary()?;
+    fn multiplication_expr(&mut self) -> Result<Box<Expr>> {
+        let mut expr = self.unary_expr()?;
         while self.match_tokens(&vec![TokenType::Slash, TokenType::Star]) {
             let op = self.previous().clone();
-            let right = self.unary()?;
+            let right = self.unary_expr()?;
             expr = Box::new(Expr::Binary {
                 left: expr,
                 operator: op,
@@ -101,11 +101,11 @@ impl Parser {
         Ok(expr)
     }
 
-    fn addition(&mut self) -> Result<Box<Expr>> {
-        let mut expr = self.multiplication()?;
+    fn addition_expr(&mut self) -> Result<Box<Expr>> {
+        let mut expr = self.multiplication_expr()?;
         while self.match_tokens(&vec![TokenType::Minus, TokenType::Plus]) {
             let op = self.previous().clone();
-            let right = self.multiplication()?;
+            let right = self.multiplication_expr()?;
             expr = Box::new(Expr::Binary {
                 left: expr,
                 operator: op,
@@ -115,8 +115,8 @@ impl Parser {
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Box<Expr>> {
-        let mut expr = self.addition()?;
+    fn comparison_expr(&mut self) -> Result<Box<Expr>> {
+        let mut expr = self.addition_expr()?;
         while self.match_tokens(&vec![
             TokenType::Greater,
             TokenType::GreaterEqual,
@@ -124,7 +124,7 @@ impl Parser {
             TokenType::LessEqual,
         ]) {
             let op = self.previous().clone();
-            let right = self.addition()?;
+            let right = self.addition_expr()?;
             expr = Box::new(Expr::Binary {
                 left: expr,
                 operator: op,
@@ -134,11 +134,11 @@ impl Parser {
         Ok(expr)
     }
 
-    fn equality(&mut self) -> Result<Box<Expr>> {
-        let mut expr = self.comparison()?;
+    fn equality_expr(&mut self) -> Result<Box<Expr>> {
+        let mut expr = self.comparison_expr()?;
         while self.match_tokens(&vec![TokenType::BangEqual, TokenType::EqualEqual]) {
             let op = self.previous().clone();
-            let right = self.comparison()?;
+            let right = self.comparison_expr()?;
             expr = Box::new(Expr::Binary {
                 left: expr,
                 operator: op,
@@ -148,22 +148,22 @@ impl Parser {
         Ok(expr)
     }
 
-    fn expression(&mut self) -> Result<Box<Expr>> {
-        self.assignment()
+    fn expression_expr(&mut self) -> Result<Box<Expr>> {
+        self.assignment_stmt()
     }
 
     // Statements
 
-    fn _declaration(&mut self) -> Result<Box<Stmt>> {
+    fn _declaration_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.match_token(TokenType::Var) {
-            self.var_declaration()
+            self.var_declaration_stmt()
         } else {
-            self.statement()
+            self.statement_stmt()
         }
     }
 
-    fn declaration(&mut self) -> Result<Box<Stmt>> {
-        match self._declaration() {
+    fn declaration_stmt(&mut self) -> Result<Box<Stmt>> {
+        match self._declaration_stmt() {
             Ok(r) => Ok(r),
             Err(e) => {
                 self.synchronize();
@@ -172,32 +172,32 @@ impl Parser {
         }
     }
 
-    fn statement(&mut self) -> Result<Box<Stmt>> {
+    fn statement_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.match_token(TokenType::Print) {
-            self.print_statement()
+            self.print_stmt()
         } else if self.match_token(TokenType::LeftBrace) {
             Ok(Box::new(Stmt::Block {
-                statements: self.block()?,
+                statements: self.block_stmt()?,
             }))
         } else {
-            self.expression_statement()
+            self.expression_stmt()
         }
     }
 
-    fn print_statement(&mut self) -> Result<Box<Stmt>> {
-        let value = self.expression()?;
+    fn print_stmt(&mut self) -> Result<Box<Stmt>> {
+        let value = self.expression_expr()?;
         self.consume(TokenType::Semicolon, "Expect \";\" after value.")?;
         Ok(Box::new(Stmt::Print { expression: value }))
     }
 
-    fn var_declaration(&mut self) -> Result<Box<Stmt>> {
+    fn var_declaration_stmt(&mut self) -> Result<Box<Stmt>> {
         let name = self
             .consume(TokenType::Identifier, "Expect variable name.")?
             .clone();
 
         let mut initializer: Option<Box<Expr>> = None;
         if self.match_token(TokenType::Equal) {
-            initializer = Some(self.expression()?);
+            initializer = Some(self.expression_expr()?);
         }
         self.consume(
             TokenType::Semicolon,
@@ -209,26 +209,26 @@ impl Parser {
         }))
     }
 
-    fn expression_statement(&mut self) -> Result<Box<Stmt>> {
-        let expr = self.expression()?;
+    fn expression_stmt(&mut self) -> Result<Box<Stmt>> {
+        let expr = self.expression_expr()?;
         self.consume(TokenType::Semicolon, "Expect \";\" after expression.")?;
         Ok(Box::new(Stmt::Expression { expression: expr }))
     }
 
-    fn block(&mut self) -> Result<Vec<Box<Stmt>>> {
+    fn block_stmt(&mut self) -> Result<Vec<Box<Stmt>>> {
         let mut statements = vec![];
         while !self.check(TokenType::RightBrace) && !self.is_at_end() {
-            statements.push(self.declaration()?);
+            statements.push(self.declaration_stmt()?);
         }
         self.consume(TokenType::RightBrace, "Expect \"}\" after block.")?;
         Ok(statements)
     }
 
-    fn assignment(&mut self) -> Result<Box<Expr>> {
-        let expr = self.equality()?;
+    fn assignment_stmt(&mut self) -> Result<Box<Expr>> {
+        let expr = self.equality_expr()?;
         if self.match_token(TokenType::Equal) {
             let equals = self.previous().clone();
-            let value = self.assignment()?;
+            let value = self.assignment_stmt()?;
 
             match *expr {
                 Expr::Variable { name } => {
@@ -400,7 +400,7 @@ mod tests {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            let parsed = parser.expression().unwrap();
+            let parsed = parser.expression_expr().unwrap();
             assert_eq!(parsed, expected_ast);
         }
     }
@@ -413,7 +413,7 @@ mod tests {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            if let Ok(_) = parser.expression() {
+            if let Ok(_) = parser.expression_expr() {
                 panic!("Expression should not have parsed");
             }
         }
