@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc, cell::RefCell};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::environment::Environment;
 use crate::error;
@@ -90,7 +90,11 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    pub fn execute_block(&mut self, statements:&Vec<Box<Stmt>>, env:Rc<RefCell<Environment>>) -> Result<()> {
+    pub fn execute_block(
+        &mut self,
+        statements: &Vec<Box<Stmt>>,
+        env: Rc<RefCell<Environment>>,
+    ) -> Result<()> {
         let previous_env = self.environment.clone();
         self.environment = env;
 
@@ -216,7 +220,9 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
 
 impl StmtVisitor<Result<()>> for Interpreter {
     fn visit_block_stmt(&mut self, statements: &Vec<Box<Stmt>>) -> Result<()> {
-        let env = Rc::new(RefCell::new(Environment::as_child_of(self.environment.clone())));
+        let env = Rc::new(RefCell::new(Environment::as_child_of(
+            self.environment.clone(),
+        )));
         self.execute_block(statements, env)
     }
     fn visit_expression_stmt(&mut self, expression: &Box<Expr>) -> Result<()> {

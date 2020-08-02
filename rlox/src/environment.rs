@@ -1,5 +1,5 @@
-use std::{rc::Rc, cell::RefCell};
 use std::collections::HashMap;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::error::RuntimeError;
 use crate::interpreter::{LoxObject, Result};
@@ -18,15 +18,11 @@ impl Environment {
         }
     }
 
-    pub fn as_child_of(parent:Rc<RefCell<Environment>>) -> Self {
+    pub fn as_child_of(parent: Rc<RefCell<Environment>>) -> Self {
         Environment {
             enclosing: Some(parent),
             values: HashMap::new(),
         }
-    }
-
-    pub fn parent(&self) -> Option<Rc<RefCell<Environment>>> {
-        self.enclosing.clone()
     }
 
     pub fn define(&mut self, name: &str, value: &LoxObject) {
@@ -40,8 +36,7 @@ impl Environment {
         } else if let Some(parent) = &self.enclosing {
             parent.borrow_mut().assign(name, value)?;
             Ok(())
-        }
-        else {
+        } else {
             Err(RuntimeError::new(
                 name,
                 &format!("Undefined variable \"{}\".", name.lexeme),
@@ -98,7 +93,8 @@ mod tests {
         let mut env = Environment::new();
         let name = Token::new(TokenType::Identifier, String::from("a"), None, 1);
         env.define(&name.lexeme, &LoxObject::Number(10.0));
-        env.assign(&name, &LoxObject::Str(String::from("Hello World"))).unwrap();
+        env.assign(&name, &LoxObject::Str(String::from("Hello World")))
+            .unwrap();
         env.assign(&name, &LoxObject::Boolean(false)).unwrap();
         assert_eq!(env.get(&name).unwrap(), LoxObject::Boolean(false));
     }

@@ -176,9 +176,10 @@ impl Parser {
         if self.match_token(TokenType::Print) {
             self.print_statement()
         } else if self.match_token(TokenType::LeftBrace) {
-            Ok(Box::new(Stmt::Block{ statements: self.block()? } ))
-        }
-        else {
+            Ok(Box::new(Stmt::Block {
+                statements: self.block()?,
+            }))
+        } else {
             self.expression_statement()
         }
     }
