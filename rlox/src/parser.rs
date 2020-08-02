@@ -173,7 +173,10 @@ impl Parser {
     }
 
     fn statement_stmt(&mut self) -> Result<Box<Stmt>> {
-        if self.match_token(TokenType::Print) {
+        if self.match_token(TokenType::If) {
+            self.if_stmt()
+        }
+        else if self.match_token(TokenType::Print) {
             self.print_stmt()
         } else if self.match_token(TokenType::LeftBrace) {
             Ok(Box::new(Stmt::Block {
@@ -182,6 +185,19 @@ impl Parser {
         } else {
             self.expression_stmt()
         }
+    }
+
+    fn if_stmt(&mut self) -> Result<Box<Stmt>> {
+        self.consume(TokenType::LeftParen, "Expect \"(\" after \"if\".")?;
+        let condition = self.expression_expr()?;
+        self.consume(TokenType::RightParen, "Expect \")\" after if condition.")?;
+
+        let then_branch = self.statement_stmt()?;
+        let mut else_branch = Option::None;
+        if self.match_token(TokenType::Else) {
+            else_branch = Some(self.statement_stmt()?);
+        }
+        Ok(Box::new(Stmt::If{ condition, then_branch, else_branch }))
     }
 
     fn print_stmt(&mut self) -> Result<Box<Stmt>> {
