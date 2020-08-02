@@ -8,10 +8,11 @@ use crate::stmt::*;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LoxObject {
-    Number(f64),
-    Str(String),
     Boolean(bool),
     Nil,
+    Number(f64),
+    Str(String),
+    Undefined,
 }
 impl LoxObject {
     fn from_literal(literal: &crate::scanner::Literal) -> Self {
@@ -46,6 +47,7 @@ impl fmt::Display for LoxObject {
                     write!(f, "false")
                 }
             }
+            LoxObject::Undefined => write!(f, "<undefined>"),
             LoxObject::Nil => write!(f, "nil"),
         }
     }
@@ -214,7 +216,14 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
     }
 
     fn visit_variable_expr(&mut self, name: &Token) -> Result<LoxObject> {
-        self.environment.borrow().get(name)
+        let value = self.environment.borrow().get(name)?;
+        if let LoxObject::Undefined = value {
+            return Err(RuntimeError::new(
+                name,
+                "Attempt to read from undefined variable.",
+            ));
+        }
+        Ok(value)
     }
 }
 
@@ -239,7 +248,7 @@ impl StmtVisitor<Result<()>> for Interpreter {
     }
 
     fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Box<Expr>>) -> Result<()> {
-        let mut value = LoxObject::Nil;
+        let mut value = LoxObject::Undefined;
         if let Some(initializer) = initializer {
             value = self.evaluate(initializer)?;
         }
