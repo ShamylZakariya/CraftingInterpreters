@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, rc::Rc, cell::RefCell};
 
 use crate::environment::Environment;
 use crate::error;
@@ -57,12 +57,12 @@ use error::RuntimeError;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 pub struct Interpreter {
-    environment: Box<Environment>,
+    environment: Rc<RefCell<Environment>>,
 }
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
-            environment: Box::new(Environment::new()),
+            environment: Rc::new(RefCell::new(Environment::new())),
         }
     }
 
@@ -89,12 +89,29 @@ impl Interpreter {
     pub fn execute(&mut self, stmt: &Box<Stmt>) -> Result<()> {
         stmt.accept(self)
     }
+
+    pub fn execute_block(&mut self, statements:&Vec<Box<Stmt>>, env:Rc<RefCell<Environment>>) -> Result<()> {
+        let previous_env = self.environment.clone();
+        self.environment = env;
+
+        for statement in statements {
+            if let Err(e) = self.execute(statement) {
+                // had an error, restore parent env and bail
+                self.environment = previous_env;
+                return Err(e);
+            }
+        }
+
+        // completed successfully, restore parent env.
+        self.environment = previous_env;
+        Ok(())
+    }
 }
 
 impl ExprVisitor<Result<LoxObject>> for Interpreter {
     fn visit_assign_expr(&mut self, name: &Token, value: &Box<Expr>) -> Result<LoxObject> {
         let value = self.evaluate(value)?;
-        self.environment.assign(name, &value)?;
+        self.environment.borrow_mut().assign(name, &value)?;
         Ok(value)
     }
 
@@ -193,11 +210,15 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
     }
 
     fn visit_variable_expr(&mut self, name: &Token) -> Result<LoxObject> {
-        self.environment.get(name)
+        self.environment.borrow().get(name)
     }
 }
 
 impl StmtVisitor<Result<()>> for Interpreter {
+    fn visit_block_stmt(&mut self, statements: &Vec<Box<Stmt>>) -> Result<()> {
+        let env = Rc::new(RefCell::new(Environment::as_child_of(self.environment.clone())));
+        self.execute_block(statements, env)
+    }
     fn visit_expression_stmt(&mut self, expression: &Box<Expr>) -> Result<()> {
         match self.evaluate(expression) {
             Ok(_) => Ok(()),
@@ -216,7 +237,7 @@ impl StmtVisitor<Result<()>> for Interpreter {
         if let Some(initializer) = initializer {
             value = self.evaluate(initializer)?;
         }
-        self.environment.define(&name.lexeme, &value);
+        self.environment.borrow_mut().define(&name.lexeme, &value);
         Ok(())
     }
 }

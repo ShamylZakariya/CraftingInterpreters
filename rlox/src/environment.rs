@@ -1,3 +1,4 @@
+use std::{rc::Rc, cell::RefCell};
 use std::collections::HashMap;
 
 use crate::error::RuntimeError;
@@ -5,14 +6,27 @@ use crate::interpreter::{LoxObject, Result};
 use crate::scanner::Token;
 
 pub struct Environment {
+    enclosing: Option<Rc<RefCell<Environment>>>,
     values: HashMap<String, LoxObject>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Environment {
+            enclosing: None,
             values: HashMap::new(),
         }
+    }
+
+    pub fn as_child_of(parent:Rc<RefCell<Environment>>) -> Self {
+        Environment {
+            enclosing: Some(parent),
+            values: HashMap::new(),
+        }
+    }
+
+    pub fn parent(&self) -> Option<Rc<RefCell<Environment>>> {
+        self.enclosing.clone()
     }
 
     pub fn define(&mut self, name: &str, value: &LoxObject) {
@@ -23,7 +37,11 @@ impl Environment {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme.to_owned(), value.clone());
             Ok(())
-        } else {
+        } else if let Some(parent) = &self.enclosing {
+            parent.borrow_mut().assign(name, value)?;
+            Ok(())
+        }
+        else {
             Err(RuntimeError::new(
                 name,
                 &format!("Undefined variable \"{}\".", name.lexeme),
@@ -34,6 +52,8 @@ impl Environment {
     pub fn get(&self, name: &Token) -> Result<LoxObject> {
         if let Some(v) = self.values.get(&name.lexeme) {
             Ok(v.clone())
+        } else if let Some(parent) = &self.enclosing {
+            parent.borrow().get(name)
         } else {
             Err(RuntimeError::new(
                 name,

@@ -175,7 +175,10 @@ impl Parser {
     fn statement(&mut self) -> Result<Box<Stmt>> {
         if self.match_token(TokenType::Print) {
             self.print_statement()
-        } else {
+        } else if self.match_token(TokenType::LeftBrace) {
+            Ok(Box::new(Stmt::Block{ statements: self.block()? } ))
+        }
+        else {
             self.expression_statement()
         }
     }
@@ -209,6 +212,15 @@ impl Parser {
         let expr = self.expression()?;
         self.consume(TokenType::Semicolon, "Expect \";\" after expression.")?;
         Ok(Box::new(Stmt::Expression { expression: expr }))
+    }
+
+    fn block(&mut self) -> Result<Vec<Box<Stmt>>> {
+        let mut statements = vec![];
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+        self.consume(TokenType::RightBrace, "Expect \"}\" after block.")?;
+        Ok(statements)
     }
 
     fn assignment(&mut self) -> Result<Box<Expr>> {
