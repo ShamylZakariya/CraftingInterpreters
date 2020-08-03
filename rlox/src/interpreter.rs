@@ -200,6 +200,37 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
         Ok(LoxObject::from_literal(literal))
     }
 
+    fn visit_logical_expr(
+        &mut self,
+        left: &Box<Expr>,
+        operator: &Token,
+        right: &Box<Expr>,
+    ) -> Result<LoxObject> {
+        let left = self.evaluate(left)?;
+        match operator.token_type {
+            TokenType::Or => {
+                // left side of Or is truthy, result of expr is the left side
+                if left.is_truthy() {
+                    return Ok(left);
+                }
+            }
+            TokenType::And => {
+                // if left side of And is not truthy, the expression result is left side
+                if !left.is_truthy() {
+                    return Ok(left);
+                }
+            }
+            _ => {
+                return Err(RuntimeError::new(
+                    operator,
+                    "Only And and Or are supported conditional operators.",
+                ))
+            }
+        }
+        // expression result is right side because logical expr wasn't short circuited
+        self.evaluate(right)
+    }
+
     fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> Result<LoxObject> {
         let right = self.evaluate(right)?;
         match operator.token_type {

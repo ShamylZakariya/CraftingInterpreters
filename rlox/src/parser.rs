@@ -175,8 +175,7 @@ impl Parser {
     fn statement_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.match_token(TokenType::If) {
             self.if_stmt()
-        }
-        else if self.match_token(TokenType::Print) {
+        } else if self.match_token(TokenType::Print) {
             self.print_stmt()
         } else if self.match_token(TokenType::LeftBrace) {
             Ok(Box::new(Stmt::Block {
@@ -197,7 +196,11 @@ impl Parser {
         if self.match_token(TokenType::Else) {
             else_branch = Some(self.statement_stmt()?);
         }
-        Ok(Box::new(Stmt::If{ condition, then_branch, else_branch }))
+        Ok(Box::new(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        }))
     }
 
     fn print_stmt(&mut self) -> Result<Box<Stmt>> {
@@ -241,7 +244,7 @@ impl Parser {
     }
 
     fn assignment_stmt(&mut self) -> Result<Box<Expr>> {
-        let expr = self.equality_expr()?;
+        let expr = self.or_expr()?;
         if self.match_token(TokenType::Equal) {
             let equals = self.previous().clone();
             let value = self.assignment_stmt()?;
@@ -257,6 +260,34 @@ impl Parser {
                     return Err(self.error(&equals, "Invalid assignment target."));
                 }
             }
+        }
+        Ok(expr)
+    }
+
+    fn or_expr(&mut self) -> Result<Box<Expr>> {
+        let mut expr = self.and_expr()?;
+        while self.match_token(TokenType::Or) {
+            let op = self.previous().clone();
+            let right = self.and_expr()?;
+            expr = Box::new(Expr::Logical {
+                left: expr,
+                operator: op,
+                right: right,
+            });
+        }
+        Ok(expr)
+    }
+
+    fn and_expr(&mut self) -> Result<Box<Expr>> {
+        let mut expr = self.equality_expr()?;
+        while self.match_token(TokenType::And) {
+            let op = self.previous().clone();
+            let right = self.equality_expr()?;
+            expr = Box::new(Expr::Logical {
+                left: expr,
+                operator: op,
+                right: right,
+            });
         }
         Ok(expr)
     }
