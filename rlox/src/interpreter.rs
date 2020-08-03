@@ -356,4 +356,24 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn logical_expressions_evaluate() {
+        let inputs = vec![
+            ("1 and 2", LoxObject::Number(1.0)),
+            ("\"hi\" and 2", LoxObject::Str(String::from("hi"))),
+            ("0 and 2", LoxObject::Number(0.0)),
+            ("0 or 2", LoxObject::Number(2.0)),
+        ];
+        for (expression, expected_result) in inputs {
+            let mut scanner = scanner::Scanner::new(expression);
+            let tokens = scanner.scan_tokens();
+            let mut parser = parser::Parser::new(tokens);
+            let expr = parser.parse_expression().unwrap();
+
+            let mut interpreter = Interpreter::new();
+            let result = interpreter.evaluate(&expr).unwrap();
+            assert_eq!(result, expected_result);
+        }
+    }
 }
