@@ -177,6 +177,8 @@ impl Parser {
             self.if_stmt()
         } else if self.match_token(TokenType::Print) {
             self.print_stmt()
+        } else if self.match_token(TokenType::While) {
+            self.while_stmt()
         } else if self.match_token(TokenType::LeftBrace) {
             Ok(Box::new(Stmt::Block {
                 statements: self.block_stmt()?,
@@ -226,6 +228,20 @@ impl Parser {
             name: name,
             initializer: initializer,
         }))
+    }
+
+    fn while_stmt(&mut self) -> Result<Box<Stmt>> {
+        self.consume(
+            TokenType::LeftParen,
+            "Expect \"(\" after variable \"while\".",
+        )?;
+        let condition = self.expression_expr()?;
+        self.consume(
+            TokenType::RightParen,
+            "Expect \")\" after variable \"while\" condition.",
+        )?;
+        let body = self.statement_stmt()?;
+        Ok(Box::new(Stmt::While { condition, body }))
     }
 
     fn expression_stmt(&mut self) -> Result<Box<Stmt>> {

@@ -187,6 +187,50 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                     ))
                 }
             }
+            TokenType::Less => {
+                if let LoxObject::Number(l) = left {
+                    if let LoxObject::Number(r) = right {
+                        Ok(LoxObject::Boolean(l < r))
+                    } else {
+                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                    }
+                } else {
+                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                }
+            },
+            TokenType::LessEqual => {
+                if let LoxObject::Number(l) = left {
+                    if let LoxObject::Number(r) = right {
+                        Ok(LoxObject::Boolean(l <= r))
+                    } else {
+                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                    }
+                } else {
+                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                }
+            },
+            TokenType::Greater => {
+                if let LoxObject::Number(l) = left {
+                    if let LoxObject::Number(r) = right {
+                        Ok(LoxObject::Boolean(l > r))
+                    } else {
+                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                    }
+                } else {
+                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                }
+            },
+            TokenType::GreaterEqual => {
+                if let LoxObject::Number(l) = left {
+                    if let LoxObject::Number(r) = right {
+                        Ok(LoxObject::Boolean(l >= r))
+                    } else {
+                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                    }
+                } else {
+                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                }
+            },
 
             _ => Err(RuntimeError::new(operator, "Unrecognized binary operator.")),
         }
@@ -298,6 +342,13 @@ impl StmtVisitor<Result<()>> for Interpreter {
             value = self.evaluate(initializer)?;
         }
         self.environment.borrow_mut().define(&name.lexeme, &value);
+        Ok(())
+    }
+
+    fn visit_while_stmt(&mut self, condition: &Box<Expr>, body: &Box<Stmt>) -> Result<()> {
+        while self.evaluate(condition)?.is_truthy() {
+            self.execute(body)?;
+        }
         Ok(())
     }
 }

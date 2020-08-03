@@ -21,6 +21,10 @@ pub enum Stmt {
         name: Token,
         initializer: Option<Box<Expr>>,
     },
+    While {
+        condition: Box<Expr>,
+        body: Box<Stmt>,
+    }
 }
 
 impl Stmt {
@@ -38,6 +42,7 @@ impl Stmt {
             } => visitor.visit_if_stmt(condition, then_branch, else_branch),
             Stmt::Print { expression } => visitor.visit_print_stmt(&expression),
             Stmt::Var { name, initializer } => visitor.visit_var_stmt(&name, &initializer),
+            Stmt::While { condition, body } => visitor.visit_while_stmt(&condition, &body),
         }
     }
 }
@@ -55,4 +60,5 @@ pub trait StmtVisitor<R> {
     ) -> R;
     fn visit_print_stmt(&mut self, expression: &Box<Expr>) -> R;
     fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Box<Expr>>) -> R;
+    fn visit_while_stmt(&mut self, condition: &Box<Expr>, body: &Box<Stmt>) -> R;
 }
