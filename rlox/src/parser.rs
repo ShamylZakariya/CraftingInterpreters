@@ -149,7 +149,7 @@ impl Parser {
     }
 
     fn expression_expr(&mut self) -> Result<Box<Expr>> {
-        self.assignment_stmt()
+        self.assignment_expr()
     }
 
     // Statements
@@ -240,14 +240,14 @@ impl Parser {
                 condition: Box::new(Expr::Literal {
                     value: crate::scanner::Literal::True,
                 }),
-                body: body
+                body: body,
             });
         }
 
         if let Some(initializer) = initializer {
-            body = Box::new(Stmt::Block{ statements: vec![
-                initializer, body
-            ]});
+            body = Box::new(Stmt::Block {
+                statements: vec![initializer, body],
+            });
         }
 
         Ok(body)
@@ -324,11 +324,11 @@ impl Parser {
         Ok(statements)
     }
 
-    fn assignment_stmt(&mut self) -> Result<Box<Expr>> {
-        let expr = self.or_expr()?;
+    fn assignment_expr(&mut self) -> Result<Box<Expr>> {
+        let expr = self.ternary_expr()?;
         if self.match_token(TokenType::Equal) {
             let equals = self.previous().clone();
-            let value = self.assignment_stmt()?;
+            let value = self.assignment_expr()?;
 
             match *expr {
                 Expr::Variable { name } => {
@@ -341,6 +341,24 @@ impl Parser {
                     return Err(self.error(&equals, "Invalid assignment target."));
                 }
             }
+        }
+        Ok(expr)
+    }
+
+    fn ternary_expr(&mut self) -> Result<Box<Expr>> {
+        let expr = self.or_expr()?;
+        if self.match_token(TokenType::QuestionMark) {
+            let then_value = self.expression_expr()?;
+            self.consume(
+                TokenType::Colon,
+                "Expect \":\" separating then and else clauses of ternary expression.",
+            )?;
+            let else_value = self.expression_expr()?;
+            return Ok(Box::new(Expr::Ternary {
+                condition: expr,
+                then_value,
+                else_value,
+            }));
         }
         Ok(expr)
     }

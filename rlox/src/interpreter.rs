@@ -26,9 +26,9 @@ impl LoxObject {
     }
     fn is_truthy(&self) -> bool {
         match self {
-            LoxObject::Nil => false,
-            LoxObject::Boolean(b) => *b,
-            _ => false,
+            LoxObject::Nil => false,     // nil is falsey
+            LoxObject::Boolean(b) => *b, // booleans are what they are
+            _ => true,                   // everything else is *something*, which is truthy
         }
     }
 }
@@ -197,7 +197,7 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                 } else {
                     Err(RuntimeError::new(operator, "Left operand not a number."))
                 }
-            },
+            }
             TokenType::LessEqual => {
                 if let LoxObject::Number(l) = left {
                     if let LoxObject::Number(r) = right {
@@ -208,7 +208,7 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                 } else {
                     Err(RuntimeError::new(operator, "Left operand not a number."))
                 }
-            },
+            }
             TokenType::Greater => {
                 if let LoxObject::Number(l) = left {
                     if let LoxObject::Number(r) = right {
@@ -219,7 +219,7 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                 } else {
                     Err(RuntimeError::new(operator, "Left operand not a number."))
                 }
-            },
+            }
             TokenType::GreaterEqual => {
                 if let LoxObject::Number(l) = left {
                     if let LoxObject::Number(r) = right {
@@ -230,7 +230,7 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                 } else {
                     Err(RuntimeError::new(operator, "Left operand not a number."))
                 }
-            },
+            }
 
             _ => Err(RuntimeError::new(operator, "Unrecognized binary operator.")),
         }
@@ -273,6 +273,19 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
         }
         // expression result is right side because logical expr wasn't short circuited
         self.evaluate(right)
+    }
+
+    fn visit_ternary_expr(
+        &mut self,
+        condition: &Box<Expr>,
+        then_value: &Box<Expr>,
+        else_value: &Box<Expr>,
+    ) -> Result<LoxObject> {
+        if self.evaluate(condition)?.is_truthy() {
+            self.evaluate(then_value)
+        } else {
+            self.evaluate(else_value)
+        }
     }
 
     fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> Result<LoxObject> {

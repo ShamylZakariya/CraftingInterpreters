@@ -17,6 +17,8 @@ pub enum TokenType {
     Semicolon,
     Slash,
     Star,
+    QuestionMark,
+    Colon,
 
     // One or two character tokens.
     Bang,
@@ -379,6 +381,8 @@ impl Scanner<'_> {
                     "+" => tokens.push(Token::new(TokenType::Plus, g, None, self.line)),
                     ";" => tokens.push(Token::new(TokenType::Semicolon, g, None, self.line)),
                     "*" => tokens.push(Token::new(TokenType::Star, g, None, self.line)),
+                    "?" => tokens.push(Token::new(TokenType::QuestionMark, g, None, self.line)),
+                    ":" => tokens.push(Token::new(TokenType::Colon, g, None, self.line)),
 
                     "!" => {
                         if self.match_next_grapheme("=") {

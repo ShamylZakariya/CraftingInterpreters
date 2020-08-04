@@ -24,7 +24,7 @@ pub enum Stmt {
     While {
         condition: Box<Expr>,
         body: Box<Stmt>,
-    }
+    },
 }
 
 impl Stmt {

@@ -22,6 +22,11 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Ternary {
+        condition: Box<Expr>,
+        then_value: Box<Expr>,
+        else_value: Box<Expr>,
+    },
     Unary {
         operator: Token,
         right: Box<Expr>,
@@ -50,6 +55,11 @@ impl Expr {
                 operator,
                 right,
             } => visitor.visit_logical_expr(&left, &operator, &right),
+            Expr::Ternary {
+                condition,
+                then_value,
+                else_value,
+            } => visitor.visit_ternary_expr(condition, then_value, else_value),
             Expr::Unary { operator, right } => visitor.visit_unary_expr(&operator, &right),
             Expr::Variable { name } => visitor.visit_variable_expr(&name),
         }
@@ -64,6 +74,12 @@ pub trait ExprVisitor<R> {
     fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> R;
     fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> R;
     fn visit_logical_expr(&mut self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
+    fn visit_ternary_expr(
+        &mut self,
+        condition: &Box<Expr>,
+        then_value: &Box<Expr>,
+        else_value: &Box<Expr>,
+    ) -> R;
     fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> R;
     fn visit_variable_expr(&mut self, name: &Token) -> R;
 }
