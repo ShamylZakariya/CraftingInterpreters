@@ -59,7 +59,10 @@ use error::RuntimeError;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 enum InterpretResultStatus {
+    // Returned when a runtime error occurs
     Error(RuntimeError),
+
+    // Returned when control is flowing up the stack from a brack statement to the innermost loop.
     Break,
 }
 
