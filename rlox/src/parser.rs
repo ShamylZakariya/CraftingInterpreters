@@ -8,6 +8,7 @@ pub type Result<T> = std::result::Result<T, error::ParseError>;
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    loop_depth: usize,
 }
 
 impl Parser {
@@ -15,6 +16,7 @@ impl Parser {
         Self {
             tokens: tokens,
             current: 0,
+            loop_depth: 0,
         }
     }
 
@@ -174,19 +176,36 @@ impl Parser {
 
     fn statement_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.match_token(TokenType::For) {
-            self.for_stmt()
+            self.loop_depth += 1;
+            let result = self.for_stmt();
+            self.loop_depth -= 1;
+            result
         } else if self.match_token(TokenType::If) {
             self.if_stmt()
         } else if self.match_token(TokenType::Print) {
             self.print_stmt()
         } else if self.match_token(TokenType::While) {
-            self.while_stmt()
+            self.loop_depth += 1;
+            let result = self.while_stmt();
+            self.loop_depth -= 1;
+            result
+        } else if self.match_token(TokenType::Break) {
+            self.break_stmt()
         } else if self.match_token(TokenType::LeftBrace) {
             Ok(Box::new(Stmt::Block {
                 statements: self.block_stmt()?,
             }))
         } else {
             self.expression_stmt()
+        }
+    }
+
+    fn break_stmt(&mut self) -> Result<Box<Stmt>> {
+        if self.loop_depth > 0 {
+            self.consume(TokenType::Semicolon, "Expect \";\" after \"break\" statement.")?;
+            Ok(Box::new(Stmt::Break))
+        } else {
+            Err(self.error(self.peek(), "Break statement only allowed inside loops."))
         }
     }
 

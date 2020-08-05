@@ -37,6 +37,7 @@ pub enum TokenType {
 
     // Keywords.
     And,
+    Break,
     Class,
     Else,
     False,
@@ -185,6 +186,7 @@ impl Scanner<'_> {
     fn create_keywords() -> HashMap<String, TokenType> {
         let mut keywords = HashMap::new();
         keywords.insert(String::from("and"), TokenType::And);
+        keywords.insert(String::from("break"), TokenType::Break);
         keywords.insert(String::from("class"), TokenType::Class);
         keywords.insert(String::from("else"), TokenType::Else);
         keywords.insert(String::from("false"), TokenType::False);

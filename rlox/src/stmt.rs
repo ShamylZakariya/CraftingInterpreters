@@ -6,6 +6,7 @@ pub enum Stmt {
     Block {
         statements: Vec<Box<Stmt>>,
     },
+    Break,
     Expression {
         expression: Box<Expr>,
     },
@@ -34,6 +35,7 @@ impl Stmt {
     {
         match self {
             Stmt::Block { statements } => visitor.visit_block_stmt(&statements),
+            Stmt::Break => visitor.visit_break_stmt(),
             Stmt::Expression { expression } => visitor.visit_expression_stmt(&expression),
             Stmt::If {
                 condition,
@@ -51,6 +53,7 @@ impl Stmt {
 
 pub trait StmtVisitor<R> {
     fn visit_block_stmt(&mut self, statements: &Vec<Box<Stmt>>) -> R;
+    fn visit_break_stmt(&mut self) -> R;
     fn visit_expression_stmt(&mut self, expression: &Box<Expr>) -> R;
     fn visit_if_stmt(
         &mut self,

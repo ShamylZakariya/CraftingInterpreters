@@ -29,14 +29,20 @@ impl fmt::Display for ParseError {
 
 #[derive(Debug, Clone)]
 pub struct RuntimeError {
-    pub token: Token,
+    pub token: Option<Token>,
     pub message: String,
 }
 
 impl RuntimeError {
     pub fn new(token: &Token, message: &str) -> Self {
         Self {
-            token: token.to_owned(),
+            token: Some(token.to_owned()),
+            message: message.to_owned(),
+        }
+    }
+    pub fn with_message(message: &str) -> Self {
+        Self {
+            token: None,
             message: message.to_owned(),
         }
     }
@@ -44,7 +50,11 @@ impl RuntimeError {
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "token: {} error:\"{}\"", self.token, self.message)
+        if let Some(token) = &self.token {
+            write!(f, "token: {} error:\"{}\"", token, self.message)
+        } else {
+            write!(f, "error:\"{}\"", self.message)
+        }
     }
 }
 
@@ -74,6 +84,10 @@ pub mod report {
     }
 
     pub fn runtime_error(e: &RuntimeError) {
-        eprintln!("{}\n[line {}]", e.message, e.token.line);
+        if let Some(token) = &e.token {
+            eprintln!("{}\n[line {}]", e.message, token.line);
+        } else {
+            eprintln!("{}", e.message);
+        }
     }
 }

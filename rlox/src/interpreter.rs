@@ -58,6 +58,19 @@ impl fmt::Display for LoxObject {
 use error::RuntimeError;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
+enum InterpretResultStatus {
+    Error(RuntimeError),
+    Break,
+}
+
+impl std::convert::From<error::RuntimeError> for InterpretResultStatus {
+    fn from(error: RuntimeError) -> Self {
+        InterpretResultStatus::Error(error)
+    }
+}
+
+type InterpretResult<T> = std::result::Result<T, InterpretResultStatus>;
+
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
 }
@@ -71,32 +84,50 @@ impl Interpreter {
     pub fn interpret(&mut self, statements: &Vec<Box<Stmt>>) -> Result<()> {
         for statement in statements {
             if let Err(e) = self.execute(statement) {
-                error::report::runtime_error(&e);
-                return Err(e);
+                match e {
+                    InterpretResultStatus::Error(e) => {
+                        error::report::runtime_error(&e);
+                        return Err(e);
+                    }
+                    InterpretResultStatus::Break => {
+                        // we're in big trouble
+                        return Err(RuntimeError::with_message("A \"break\" statement trickled all the way up to root. Something is horribly wrong."));
+                    }
+                }
             }
         }
         Ok(())
     }
 
     pub fn evaluate(&mut self, expr: &Box<Expr>) -> Result<LoxObject> {
-        match expr.accept(self) {
+        match self._evaluate(expr) {
             Ok(result) => Ok(result),
-            Err(e) => {
-                error::report::runtime_error(&e);
-                Err(e)
+            Err(status) => match status {
+                InterpretResultStatus::Error(e) => {
+                    error::report::runtime_error(&e);
+                    return Err(e);
+                }
+                InterpretResultStatus::Break => {
+                    // we're in big trouble
+                    Err(RuntimeError::with_message("A \"break\" statement trickled all the way up to root. Something is horribly wrong."))
+                }
             }
         }
     }
 
-    pub fn execute(&mut self, stmt: &Box<Stmt>) -> Result<()> {
+    fn _evaluate(&mut self, expr: &Box<Expr>) -> InterpretResult<LoxObject> {
+        expr.accept(self)
+    }
+
+    fn execute(&mut self, stmt: &Box<Stmt>) -> InterpretResult<()> {
         stmt.accept(self)
     }
 
-    pub fn execute_block(
+    fn execute_block(
         &mut self,
         statements: &Vec<Box<Stmt>>,
         env: Rc<RefCell<Environment>>,
-    ) -> Result<()> {
+    ) -> InterpretResult<()> {
         let previous_env = self.environment.clone();
         self.environment = env;
 
@@ -114,8 +145,8 @@ impl Interpreter {
     }
 }
 
-impl ExprVisitor<Result<LoxObject>> for Interpreter {
-    fn visit_assign_expr(&mut self, name: &Token, value: &Box<Expr>) -> Result<LoxObject> {
+impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
+    fn visit_assign_expr(&mut self, name: &Token, value: &Box<Expr>) -> InterpretResult<LoxObject> {
         let value = self.evaluate(value)?;
         self.environment.borrow_mut().assign(name, &value)?;
         Ok(value)
@@ -126,7 +157,7 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
         left: &Box<Expr>,
         operator: &Token,
         right: &Box<Expr>,
-    ) -> Result<LoxObject> {
+    ) -> InterpretResult<LoxObject> {
         let left = self.evaluate(left)?;
         let right = self.evaluate(right)?;
         match operator.token_type {
@@ -135,10 +166,10 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                     if let LoxObject::Number(r) = right {
                         Ok(LoxObject::Number(l - r))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a numbe."))
+                    Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Left operand not a numbe.")))
                 }
             }
             TokenType::Slash => {
@@ -147,13 +178,13 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                         if r.abs() > 1e-8 {
                             Ok(LoxObject::Number(l / r))
                         } else {
-                            Err(RuntimeError::new(operator, "Attempt to divide by zero."))
+                            Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Attempt to divide by zero.")))
                         }
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                    Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Left operand not a number.")))
                 }
             }
             TokenType::Star => {
@@ -161,10 +192,10 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                     if let LoxObject::Number(r) = right {
                         Ok(LoxObject::Number(l * r))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                    Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Left operand not a number.")))
                 }
             }
             TokenType::Plus => {
@@ -172,30 +203,52 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                     if let LoxObject::Number(r) = right {
                         Ok(LoxObject::Number(l + r))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else if let LoxObject::Str(l) = left {
                     if let LoxObject::Str(r) = right {
                         Ok(LoxObject::Str(format!("{}{}", l, r)))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a string"))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a string")))
                     }
                 } else {
-                    Err(RuntimeError::new(
+                    Err(InterpretResultStatus::Error(RuntimeError::new(
                         operator,
                         "Left operand not a number or string.",
-                    ))
+                    )))
                 }
             }
+
+            TokenType::EqualEqual => {
+                if let LoxObject::Number(l) = left {
+                    if let LoxObject::Number(r) = right {
+                        Ok(LoxObject::Boolean(l == r))
+                    } else {
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
+                    }
+                } else if let LoxObject::Str(l) = left {
+                    if let LoxObject::Str(r) = right {
+                        Ok(LoxObject::Boolean(l == r))
+                    } else {
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a string")))
+                    }
+                } else {
+                    Err(InterpretResultStatus::Error(RuntimeError::new(
+                        operator,
+                        "Left operand not a number or string.",
+                    )))
+                }
+            }
+
             TokenType::Less => {
                 if let LoxObject::Number(l) = left {
                     if let LoxObject::Number(r) = right {
                         Ok(LoxObject::Boolean(l < r))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                    Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Left operand not a number.")))
                 }
             }
             TokenType::LessEqual => {
@@ -203,10 +256,10 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                     if let LoxObject::Number(r) = right {
                         Ok(LoxObject::Boolean(l <= r))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                    Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Left operand not a number.")))
                 }
             }
             TokenType::Greater => {
@@ -214,10 +267,10 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                     if let LoxObject::Number(r) = right {
                         Ok(LoxObject::Boolean(l > r))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                    Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Left operand not a number.")))
                 }
             }
             TokenType::GreaterEqual => {
@@ -225,22 +278,22 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                     if let LoxObject::Number(r) = right {
                         Ok(LoxObject::Boolean(l >= r))
                     } else {
-                        Err(RuntimeError::new(operator, "Right operand not a number."))
+                        Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Right operand not a number.")))
                     }
                 } else {
-                    Err(RuntimeError::new(operator, "Left operand not a number."))
+                    Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Left operand not a number.")))
                 }
             }
 
-            _ => Err(RuntimeError::new(operator, "Unrecognized binary operator.")),
+            _ => Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Unrecognized binary operator."))),
         }
     }
 
-    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> Result<LoxObject> {
-        self.evaluate(expr)
+    fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> InterpretResult<LoxObject> {
+        self._evaluate(expr)
     }
 
-    fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> Result<LoxObject> {
+    fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> InterpretResult<LoxObject> {
         Ok(LoxObject::from_literal(literal))
     }
 
@@ -249,7 +302,7 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
         left: &Box<Expr>,
         operator: &Token,
         right: &Box<Expr>,
-    ) -> Result<LoxObject> {
+    ) -> InterpretResult<LoxObject> {
         let left = self.evaluate(left)?;
         match operator.token_type {
             TokenType::Or => {
@@ -265,14 +318,14 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
                 }
             }
             _ => {
-                return Err(RuntimeError::new(
+                return Err(InterpretResultStatus::Error(RuntimeError::new(
                     operator,
                     "Only And and Or are supported conditional operators.",
-                ))
+                )))
             }
         }
         // expression result is right side because logical expr wasn't short circuited
-        self.evaluate(right)
+        self._evaluate(right)
     }
 
     fn visit_ternary_expr(
@@ -280,52 +333,57 @@ impl ExprVisitor<Result<LoxObject>> for Interpreter {
         condition: &Box<Expr>,
         then_value: &Box<Expr>,
         else_value: &Box<Expr>,
-    ) -> Result<LoxObject> {
+    ) -> InterpretResult<LoxObject> {
         if self.evaluate(condition)?.is_truthy() {
-            self.evaluate(then_value)
+            self._evaluate(then_value)
         } else {
-            self.evaluate(else_value)
+            self._evaluate(else_value)
         }
     }
 
-    fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> Result<LoxObject> {
+    fn visit_unary_expr(&mut self, operator: &Token, right: &Box<Expr>) -> InterpretResult<LoxObject> {
         let right = self.evaluate(right)?;
         match operator.token_type {
             TokenType::Bang => Ok(LoxObject::Boolean(!right.is_truthy())),
             TokenType::Minus => match right {
                 LoxObject::Number(n) => Ok(LoxObject::Number(-n)),
-                _ => Err(RuntimeError::new(
+                _ => Err(InterpretResultStatus::Error(RuntimeError::new(
                     operator,
                     "Unary negative can only be applied to numbers.",
-                )),
+                ))),
             },
-            _ => Err(RuntimeError::new(operator, "Unsupported unary operator.")),
+            _ => Err(InterpretResultStatus::Error(RuntimeError::new(operator, "Unsupported unary operator."))),
         }
     }
 
-    fn visit_variable_expr(&mut self, name: &Token) -> Result<LoxObject> {
+    fn visit_variable_expr(&mut self, name: &Token) -> InterpretResult<LoxObject> {
         let value = self.environment.borrow().get(name)?;
         if let LoxObject::Undefined = value {
-            return Err(RuntimeError::new(
+            return Err(InterpretResultStatus::Error(RuntimeError::new(
                 name,
                 "Attempt to read from undefined variable.",
-            ));
+            )));
         }
         Ok(value)
     }
 }
 
-impl StmtVisitor<Result<()>> for Interpreter {
-    fn visit_block_stmt(&mut self, statements: &Vec<Box<Stmt>>) -> Result<()> {
+impl StmtVisitor<InterpretResult<()>> for Interpreter {
+    fn visit_block_stmt(&mut self, statements: &Vec<Box<Stmt>>) -> InterpretResult<()> {
         let env = Rc::new(RefCell::new(Environment::as_child_of(
             self.environment.clone(),
         )));
         self.execute_block(statements, env)
     }
-    fn visit_expression_stmt(&mut self, expression: &Box<Expr>) -> Result<()> {
+
+    fn visit_break_stmt(&mut self) -> InterpretResult<()>{
+        Err(InterpretResultStatus::Break)
+    }
+
+    fn visit_expression_stmt(&mut self, expression: &Box<Expr>) -> InterpretResult<()> {
         match self.evaluate(expression) {
             Ok(_) => Ok(()),
-            Err(e) => Err(e),
+            Err(e) => Err(InterpretResultStatus::Error(e)),
         }
     }
 
@@ -334,7 +392,7 @@ impl StmtVisitor<Result<()>> for Interpreter {
         condition: &Box<Expr>,
         then_branch: &Box<Stmt>,
         else_branch: &Option<Box<Stmt>>,
-    ) -> Result<()> {
+    ) -> InterpretResult<()> {
         if self.evaluate(condition)?.is_truthy() {
             self.execute(then_branch)?;
         } else if let Some(else_branch) = else_branch {
@@ -343,13 +401,13 @@ impl StmtVisitor<Result<()>> for Interpreter {
         Ok(())
     }
 
-    fn visit_print_stmt(&mut self, expression: &Box<Expr>) -> Result<()> {
+    fn visit_print_stmt(&mut self, expression: &Box<Expr>) -> InterpretResult<()> {
         let value = self.evaluate(expression)?;
         println!("{}", value);
         Ok(())
     }
 
-    fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Box<Expr>>) -> Result<()> {
+    fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Box<Expr>>) -> InterpretResult<()> {
         let mut value = LoxObject::Undefined;
         if let Some(initializer) = initializer {
             value = self.evaluate(initializer)?;
@@ -358,9 +416,20 @@ impl StmtVisitor<Result<()>> for Interpreter {
         Ok(())
     }
 
-    fn visit_while_stmt(&mut self, condition: &Box<Expr>, body: &Box<Stmt>) -> Result<()> {
+    fn visit_while_stmt(&mut self, condition: &Box<Expr>, body: &Box<Stmt>) -> InterpretResult<()> {
         while self.evaluate(condition)?.is_truthy() {
-            self.execute(body)?;
+            match self.execute(body) {
+                Ok(_) => (),
+                Err(status) => match status {
+                    InterpretResultStatus::Error(runtime_error) => {
+                        return Err(InterpretResultStatus::Error(runtime_error));
+                    },
+                    InterpretResultStatus::Break => {
+                        // time to break from loop.
+                        break;
+                    }
+                }
+            };
         }
         Ok(())
     }
@@ -424,10 +493,10 @@ mod tests {
     #[test]
     fn logical_expressions_evaluate() {
         let inputs = vec![
-            ("1 and 2", LoxObject::Number(1.0)),
-            ("\"hi\" and 2", LoxObject::Str(String::from("hi"))),
-            ("0 and 2", LoxObject::Number(0.0)),
-            ("0 or 2", LoxObject::Number(2.0)),
+            ("1 and 2", LoxObject::Number(2.0)),
+            ("\"hi\" and nil", LoxObject::Nil),
+            ("0 and 2", LoxObject::Number(2.0)),
+            ("0 or 2", LoxObject::Number(0.0)),
         ];
         for (expression, expected_result) in inputs {
             let mut scanner = scanner::Scanner::new(expression);
