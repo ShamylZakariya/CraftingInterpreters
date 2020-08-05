@@ -564,10 +564,7 @@ mod tests {
             let mut parser = parser::Parser::new(tokens);
             let expr = parser.parse_expression().unwrap();
             let mut interpreter = Interpreter::new();
-            match interpreter.evaluate(&expr) {
-                Err(_) => (),
-                Ok(r) => panic!("Expected expression to return runtime error, not: {}", r),
-            }
+            assert!(interpreter.evaluate(&expr).is_err());
         }
     }
 

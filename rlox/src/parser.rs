@@ -578,9 +578,7 @@ mod tests {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            if let Ok(_) = parser.parse_expression() {
-                panic!("Expression should not have parsed");
-            }
+            assert!(parser.parse_expression().is_err(), "Program should not have parsed.");
         }
     }
 
@@ -616,10 +614,7 @@ mod tests {
             let mut scanner = Scanner::new(program);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            match parser.parse() {
-                Ok(_) => assert!(false, "Program should not have parsed."),
-                Err(_) => (),
-            };
+            assert!(parser.parse().is_err(), "Program should not have parsed.");
         }
     }
 }
