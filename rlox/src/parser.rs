@@ -578,9 +578,48 @@ mod tests {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            if let Ok(_) = parser.expression_expr() {
+            if let Ok(_) = parser.parse_expression() {
                 panic!("Expression should not have parsed");
             }
+        }
+    }
+
+    #[test]
+    fn fails_to_parse_bad_programs() {
+        let programs = vec![
+            r#"
+            var a = 0;
+            var b = 1 // missing semicolon
+            var c = 2;
+            "#,
+
+            r#"
+            var a = 0;
+            var b = 1;
+
+            // break disallowed outside a while loop
+            break;
+
+            while (a < 10000) {
+              print a;
+              var temp = a;
+              a = b;
+              b = temp + b;
+              if (a == 377) {
+                  break;
+              }
+            }
+            "#
+        ];
+
+        for program in programs {
+            let mut scanner = Scanner::new(program);
+            let tokens = scanner.scan_tokens();
+            let mut parser = Parser::new(tokens);
+            match parser.parse() {
+                Ok(_) => assert!(false, "Program should not have parsed."),
+                Err(_) => (),
+            };
         }
     }
 }
