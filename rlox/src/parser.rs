@@ -364,7 +364,10 @@ impl Parser {
 
     fn return_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.callable_depth == 0 {
-            return Err(self.error(self.peek(), "Illegal use of return statement outside of a function."));
+            return Err(self.error(
+                self.peek(),
+                "Illegal use of return statement outside of a function.",
+            ));
         }
         let keyword = self.previous().clone();
         let mut value = None;
@@ -514,16 +517,16 @@ impl Parser {
                 }
             }
         }
-        self.consume(TokenType::RightParen, "Expect \")\" after lambda parameter list.")?;
+        self.consume(
+            TokenType::RightParen,
+            "Expect \")\" after lambda parameter list.",
+        )?;
         self.consume(
             TokenType::LeftBrace,
             &format!("Expect \"{{\" before lambda body."),
         )?;
         let body = self.block_stmt()?;
-        Ok(Box::new(Expr::Lambda{
-            parameters,
-            body,
-        }))
+        Ok(Box::new(Expr::Lambda { parameters, body }))
     }
 
     fn ternary_expr(&mut self) -> Result<Box<Expr>> {
@@ -778,7 +781,7 @@ mod tests {
                 print "hello";
             }
             return;
-            "#
+            "#,
         ];
 
         for program in programs {

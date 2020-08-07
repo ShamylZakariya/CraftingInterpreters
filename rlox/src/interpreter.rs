@@ -160,7 +160,6 @@ impl LoxFunction {
             closure: closure,
         }
     }
-
 }
 
 impl LoxCallable for LoxFunction {
@@ -234,7 +233,7 @@ impl Interpreter {
         }
     }
 
-    fn _process_error(&self, e:InterpretResultStatus)->RuntimeError{
+    fn _process_error(&self, e: InterpretResultStatus) -> RuntimeError {
         match e {
             InterpretResultStatus::Error(e) => {
                 error::report::runtime_error(&e);
@@ -526,7 +525,11 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         self._evaluate(expr)
     }
 
-    fn visit_lambda_expr(&mut self, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> InterpretResult<LoxObject> {
+    fn visit_lambda_expr(
+        &mut self,
+        parameters: &Vec<Token>,
+        body: &Vec<Box<Stmt>>,
+    ) -> InterpretResult<LoxObject> {
         let fun = LoxFunction::new_lambda(parameters, body, self.environment.clone());
         let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
         Ok(callable)
