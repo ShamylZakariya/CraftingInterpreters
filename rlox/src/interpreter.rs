@@ -207,20 +207,7 @@ impl Interpreter {
     pub fn interpret(&mut self, statements: &Vec<Box<Stmt>>) -> Result<()> {
         for statement in statements {
             if let Err(e) = self.execute(statement) {
-                match e {
-                    InterpretResultStatus::Error(e) => {
-                        error::report::runtime_error(&e);
-                        return Err(e);
-                    }
-                    InterpretResultStatus::Break => {
-                        // we're in big trouble
-                        return Err(RuntimeError::with_message("A \"break\" statement trickled all the way up to root. Something is horribly wrong."));
-                    }
-                    InterpretResultStatus::Return(_) => {
-                        // we're in big trouble
-                        return Err(RuntimeError::with_message("A \"return\" statement trickled all the way up to root. Something is horribly wrong."));
-                    }
-                }
+                return Err(self._process_error(e));
             }
         }
         Ok(())
@@ -229,20 +216,24 @@ impl Interpreter {
     pub fn evaluate(&mut self, expr: &Box<Expr>) -> Result<LoxObject> {
         match self._evaluate(expr) {
             Ok(result) => Ok(result),
-            Err(status) => match status {
-                InterpretResultStatus::Error(e) => {
-                    error::report::runtime_error(&e);
-                    return Err(e);
-                }
-                InterpretResultStatus::Break => {
-                    // we're in big trouble
-                    Err(RuntimeError::with_message("A \"break\" statement trickled all the way up to root. Something is horribly wrong."))
-                }
-                InterpretResultStatus::Return(_) => {
-                    // we're in big trouble
-                    return Err(RuntimeError::with_message("A \"return\" statement trickled all the way up to root. Something is horribly wrong."));
-                }
-            },
+            Err(e) => Err(self._process_error(e)),
+        }
+    }
+
+    fn _process_error(&self, e:InterpretResultStatus)->RuntimeError{
+        match e {
+            InterpretResultStatus::Error(e) => {
+                error::report::runtime_error(&e);
+                return e;
+            }
+            InterpretResultStatus::Break => {
+                // we're in big trouble
+                return RuntimeError::with_message("A \"break\" statement trickled all the way up to root. Something is horribly wrong.");
+            }
+            InterpretResultStatus::Return(_) => {
+                // we're in big trouble
+                return RuntimeError::with_message("A \"return\" statement trickled all the way up to root. Something is horribly wrong.");
+            }
         }
     }
 
@@ -779,6 +770,27 @@ mod tests {
         }
     }
 
+    /// The inputs
+    fn execute(inputs: &Vec<(&str, Vec<(&str, LoxObject)>)>) {
+        for (program, expected_results) in inputs {
+            let mut scanner = scanner::Scanner::new(program);
+            let tokens = scanner.scan_tokens();
+            let mut parser = parser::Parser::new(tokens);
+            let statements = parser.parse().unwrap();
+
+            let mut interpreter = Interpreter::new();
+            interpreter.interpret(&statements).unwrap();
+
+            for (name, value) in expected_results {
+                let token = Token::new(TokenType::Identifier, String::from(*name), None, 1);
+                assert_eq!(
+                    interpreter.environment().borrow().get(&token).unwrap(),
+                    *value
+                );
+            }
+        }
+    }
+
     #[test]
     fn programs_produce_expected_results() {
         let inputs = vec![
@@ -813,23 +825,34 @@ mod tests {
                 vec![("a", LoxObject::Number(377.0))],
             ),
         ];
+        execute(&inputs);
+    }
 
-        for (program, expected_results) in inputs {
-            let mut scanner = scanner::Scanner::new(program);
-            let tokens = scanner.scan_tokens();
-            let mut parser = parser::Parser::new(tokens);
-            let statements = parser.parse().unwrap();
-
-            let mut interpreter = Interpreter::new();
-            interpreter.interpret(&statements).unwrap();
-
-            for (name, value) in expected_results {
-                let token = Token::new(TokenType::Identifier, String::from(name), None, 1);
-                assert_eq!(
-                    interpreter.environment().borrow().get(&token).unwrap(),
-                    value
-                );
-            }
-        }
+    #[test]
+    fn return_exits_functions_with_expected_values() {
+        let inputs = vec![
+            (
+                r#"
+                fun foo(t) {
+                    if (t) {
+                        return 1;
+                    }
+                    return 0;
+                }
+                var a = foo(true);
+                var b = foo(false);
+                "#,
+                vec![("a", LoxObject::Number(1.0)), ("b", LoxObject::Number(0.0))],
+            ),
+            (
+                r#"
+                fun foo() {
+                }
+                var a = foo();
+                "#,
+                vec![("a", LoxObject::Nil)],
+            ),
+        ];
+        execute(&inputs);
     }
 }
