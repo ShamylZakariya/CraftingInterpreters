@@ -127,26 +127,40 @@ impl fmt::Display for LoxObject {
 //-----------------------------------------------------------------------------
 
 struct LoxFunction {
-    _name: Token,
+    _name: Option<Token>,
     parameters: Vec<Token>,
     body: Vec<Box<Stmt>>,
     closure: Rc<RefCell<Environment>>,
 }
 
 impl LoxFunction {
-    fn new(
+    fn new_function(
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
         closure: Rc<RefCell<Environment>>,
     ) -> Self {
         LoxFunction {
-            _name: name.clone(),
+            _name: Some(name.clone()),
             parameters: parameters.clone(),
             body: body.clone(),
             closure: closure,
         }
     }
+
+    fn new_lambda(
+        parameters: &Vec<Token>,
+        body: &Vec<Box<Stmt>>,
+        closure: Rc<RefCell<Environment>>,
+    ) -> Self {
+        LoxFunction {
+            _name: None,
+            parameters: parameters.clone(),
+            body: body.clone(),
+            closure: closure,
+        }
+    }
+
 }
 
 impl LoxCallable for LoxFunction {
@@ -512,6 +526,12 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         self._evaluate(expr)
     }
 
+    fn visit_lambda_expr(&mut self, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> InterpretResult<LoxObject> {
+        let fun = LoxFunction::new_lambda(parameters, body, self.environment.clone());
+        let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
+        Ok(callable)
+    }
+
     fn visit_literal_expr(
         &mut self,
         literal: &crate::scanner::Literal,
@@ -622,7 +642,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> InterpretResult<()> {
-        let fun = LoxFunction::new(name, parameters, body, self.environment.clone());
+        let fun = LoxFunction::new_function(name, parameters, body, self.environment.clone());
         let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
         self.environment()
             .borrow_mut()

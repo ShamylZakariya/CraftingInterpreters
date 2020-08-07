@@ -54,6 +54,10 @@ impl Parser {
     // Expressions
 
     fn primary_expr(&mut self) -> Result<Box<Expr>> {
+        if self.match_token(TokenType::Fun) {
+            return self.lambda_expr();
+        }
+
         if self.match_token(TokenType::False) {
             return Ok(Box::new(Expr::Literal {
                 value: crate::scanner::Literal::False,
@@ -463,7 +467,10 @@ impl Parser {
     }
 
     fn assignment_expr(&mut self) -> Result<Box<Expr>> {
-        let expr = self.ternary_expr()?;
+        let mut expr = self.ternary_expr()?;
+        if self.match_token(TokenType::Fun) {
+            expr = self.lambda_expr()?;
+        }
         if self.match_token(TokenType::Equal) {
             let equals = self.previous().clone();
             let value = self.assignment_expr()?;
@@ -481,6 +488,42 @@ impl Parser {
             }
         }
         Ok(expr)
+    }
+
+    fn lambda_expr(&mut self) -> Result<Box<Expr>> {
+        self.consume(
+            TokenType::LeftParen,
+            "Expect \"(\" after lambda expression declaration",
+        )?;
+        let mut parameters = vec![];
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    self.error(
+                        self.peek(),
+                        "Cannot have more than 255 parameters in function declaration.",
+                    );
+                }
+
+                parameters.push(
+                    self.consume(TokenType::Identifier, "Expect parameter name.")?
+                        .clone(),
+                );
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect \")\" after lambda parameter list.")?;
+        self.consume(
+            TokenType::LeftBrace,
+            &format!("Expect \"{{\" before lambda body."),
+        )?;
+        let body = self.block_stmt()?;
+        Ok(Box::new(Expr::Lambda{
+            parameters,
+            body,
+        }))
     }
 
     fn ternary_expr(&mut self) -> Result<Box<Expr>> {

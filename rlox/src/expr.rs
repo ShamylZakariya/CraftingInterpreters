@@ -1,4 +1,5 @@
 use crate::scanner::*;
+use crate::stmt::Stmt;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expr {
@@ -18,6 +19,10 @@ pub enum Expr {
     },
     Grouping {
         expression: Box<Expr>,
+    },
+    Lambda {
+        parameters: Vec<Token>,
+        body: Vec<Box<Stmt>>,
     },
     Literal {
         value: crate::scanner::Literal,
@@ -59,6 +64,7 @@ impl Expr {
                 arguments,
             } => visitor.visit_call_expr(&callee, &paren, &arguments),
             Expr::Grouping { expression } => visitor.visit_grouping_expr(&expression),
+            Expr::Lambda{ parameters, body } => visitor.visit_lambda_expr(&parameters, &body),
             Expr::Literal { value } => visitor.visit_literal_expr(&value),
             Expr::Logical {
                 left,
@@ -88,6 +94,7 @@ pub trait ExprVisitor<R> {
         paren: &Token,
         arguments: &Vec<Box<Expr>>,
     ) -> R;
+    fn visit_lambda_expr(&mut self, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> R;
     fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> R;
     fn visit_logical_expr(&mut self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
     fn visit_ternary_expr(
