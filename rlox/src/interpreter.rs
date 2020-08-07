@@ -159,9 +159,7 @@ impl LoxCallable for LoxFunction {
         interpreter: &mut Interpreter,
         arguments: &Vec<LoxObject>,
     ) -> InterpretResult<Option<LoxObject>> {
-        let env = Rc::new(RefCell::new(Environment::as_child_of(
-            self.closure.clone(),
-        )));
+        let env = Rc::new(RefCell::new(Environment::as_child_of(self.closure.clone())));
         for i in 0..self.parameters.len() {
             env.borrow_mut()
                 .define(&self.parameters[i].lexeme, &arguments[i]);
