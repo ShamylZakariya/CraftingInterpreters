@@ -5,6 +5,7 @@ mod environment;
 mod error;
 mod expr;
 mod interpreter;
+mod natives;
 mod parser;
 mod scanner;
 mod stmt;

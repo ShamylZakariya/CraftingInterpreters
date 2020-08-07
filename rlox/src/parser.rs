@@ -86,7 +86,44 @@ impl Parser {
                 right: right,
             }));
         }
-        self.primary_expr()
+        self.call_expr()
+    }
+
+    fn call_expr(&mut self) -> Result<Box<Expr>> {
+        let mut expr = self.primary_expr()?;
+        loop {
+            if self.match_token(TokenType::LeftParen) {
+                // parse argument list
+                expr = self.finish_call_expr(expr)?;
+            } else {
+                break;
+            }
+        }
+        Ok(expr)
+    }
+
+    fn finish_call_expr(&mut self, callee: Box<Expr>) -> Result<Box<Expr>> {
+        let mut arguments = vec![];
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    // just report error, don't bail.
+                    self.error(self.peek(), "Cannot have more than 255 arguments.");
+                }
+                arguments.push(self.expression_expr()?);
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        let paren = self
+            .consume(TokenType::RightParen, "Expect \")\" after arguments.")?
+            .clone();
+        Ok(Box::new(Expr::Call {
+            callee,
+            paren,
+            arguments,
+        }))
     }
 
     fn multiplication_expr(&mut self) -> Result<Box<Expr>> {
@@ -202,7 +239,10 @@ impl Parser {
 
     fn break_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.loop_depth > 0 {
-            self.consume(TokenType::Semicolon, "Expect \";\" after \"break\" statement.")?;
+            self.consume(
+                TokenType::Semicolon,
+                "Expect \";\" after \"break\" statement.",
+            )?;
             Ok(Box::new(Stmt::Break))
         } else {
             Err(self.error(self.peek(), "Break statement only allowed inside loops."))
@@ -578,7 +618,10 @@ mod tests {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            assert!(parser.parse_expression().is_err(), "Program should not have parsed.");
+            assert!(
+                parser.parse_expression().is_err(),
+                "Program should not have parsed."
+            );
         }
     }
 
@@ -590,7 +633,6 @@ mod tests {
             var b = 1 // missing semicolon
             var c = 2;
             "#,
-
             r#"
             var a = 0;
             var b = 1;
@@ -607,7 +649,7 @@ mod tests {
                   break;
               }
             }
-            "#
+            "#,
         ];
 
         for program in programs {

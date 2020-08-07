@@ -11,6 +11,11 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Call {
+        callee: Box<Expr>,
+        paren: Token, // this is to record line number
+        arguments: Vec<Box<Expr>>,
+    },
     Grouping {
         expression: Box<Expr>,
     },
@@ -48,6 +53,11 @@ impl Expr {
                 operator,
                 right,
             } => visitor.visit_binary_expr(&left, &operator, &right),
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => visitor.visit_call_expr(&callee, &paren, &arguments),
             Expr::Grouping { expression } => visitor.visit_grouping_expr(&expression),
             Expr::Literal { value } => visitor.visit_literal_expr(&value),
             Expr::Logical {
@@ -72,6 +82,12 @@ pub trait ExprVisitor<R> {
     fn visit_assign_expr(&mut self, name: &Token, value: &Box<Expr>) -> R;
     fn visit_binary_expr(&mut self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
     fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> R;
+    fn visit_call_expr(
+        &mut self,
+        callee: &Box<Expr>,
+        paren: &Token,
+        arguments: &Vec<Box<Expr>>,
+    ) -> R;
     fn visit_literal_expr(&mut self, literal: &crate::scanner::Literal) -> R;
     fn visit_logical_expr(&mut self, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
     fn visit_ternary_expr(

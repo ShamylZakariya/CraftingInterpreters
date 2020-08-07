@@ -3,17 +3,65 @@ use std::{cell::RefCell, fmt, rc::Rc};
 use crate::environment::Environment;
 use crate::error;
 use crate::expr::*;
+use crate::natives;
 use crate::scanner::{Literal, Token, TokenType};
 use crate::stmt::*;
 
-#[derive(PartialEq, Debug, Clone)]
+//-----------------------------------------------------------------------------
+
+use error::RuntimeError;
+pub type Result<T> = std::result::Result<T, RuntimeError>;
+
+pub enum InterpretResultStatus {
+    // Returned when a runtime error occurs
+    Error(RuntimeError),
+
+    // Returned when control is flowing up the stack from a brack statement to the innermost loop.
+    Break,
+}
+
+impl std::convert::From<error::RuntimeError> for InterpretResultStatus {
+    fn from(error: RuntimeError) -> Self {
+        InterpretResultStatus::Error(error)
+    }
+}
+
+pub type InterpretResult<T> = std::result::Result<T, InterpretResultStatus>;
+
+//-----------------------------------------------------------------------------
+pub trait LoxCallable {
+    fn arity(&self) -> usize;
+    fn call(&mut self, interpreter: &mut Interpreter, arguments: &Vec<LoxObject>) -> InterpretResult<LoxObject>;
+}
+
+impl fmt::Debug for dyn LoxCallable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<function arity {}>", self.arity())
+    }
+}
+
+impl fmt::Display for dyn LoxCallable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<function arity {}>", self.arity())
+    }
+}
+
+impl PartialEq<dyn LoxCallable> for dyn LoxCallable {
+    fn eq(&self, other: &Self) -> bool {
+        &self == &other
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum LoxObject {
     Boolean(bool),
+    Callable(Rc<RefCell<dyn LoxCallable>>),
     Nil,
     Number(f64),
     Str(String),
     Undefined,
 }
+
 impl LoxObject {
     fn from_literal(literal: &crate::scanner::Literal) -> Self {
         match literal {
@@ -33,13 +81,26 @@ impl LoxObject {
     }
 }
 
+impl PartialEq<LoxObject> for LoxObject {
+    fn eq(&self, _other: &Self) -> bool {
+        use LoxObject::*;
+        match (self, _other) {
+            (Boolean(b1), Boolean(b2)) => b1 == b2,
+            (Callable(c1), Callable(c2)) => c1 == c2,
+            (Nil, Nil) => true,
+            (Number(n1), Number(n2)) => n1 == n2,
+            (Str(s1), Str(s2)) => s1 == s2,
+            (Undefined, Undefined) => true,
+            _ => false,
+        }
+    }
+}
+
 impl Eq for LoxObject {}
 
 impl fmt::Display for LoxObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LoxObject::Number(n) => write!(f, "{}", n),
-            LoxObject::Str(s) => write!(f, "{}", s),
             LoxObject::Boolean(v) => {
                 if *v {
                     write!(f, "true")
@@ -47,40 +108,29 @@ impl fmt::Display for LoxObject {
                     write!(f, "false")
                 }
             }
-            LoxObject::Undefined => write!(f, "<undefined>"),
+            LoxObject::Callable(c) => write!(f, "{}", c.borrow()),
             LoxObject::Nil => write!(f, "nil"),
+            LoxObject::Number(n) => write!(f, "{}", n),
+            LoxObject::Str(s) => write!(f, "{}", s),
+            LoxObject::Undefined => write!(f, "<undefined>"),
         }
     }
 }
 
-//-------------
-
-use error::RuntimeError;
-pub type Result<T> = std::result::Result<T, RuntimeError>;
-
-enum InterpretResultStatus {
-    // Returned when a runtime error occurs
-    Error(RuntimeError),
-
-    // Returned when control is flowing up the stack from a brack statement to the innermost loop.
-    Break,
-}
-
-impl std::convert::From<error::RuntimeError> for InterpretResultStatus {
-    fn from(error: RuntimeError) -> Self {
-        InterpretResultStatus::Error(error)
-    }
-}
-
-type InterpretResult<T> = std::result::Result<T, InterpretResultStatus>;
+//-----------------------------------------------------------------------------
 
 pub struct Interpreter {
+    globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
 impl Interpreter {
     pub fn new() -> Self {
+        let globals = Rc::new(RefCell::new(Environment::new()));
+        globals.borrow_mut().define("clock", &LoxObject::Callable(Rc::new(RefCell::new(natives::NativeClock::new()))));
+
         Interpreter {
-            environment: Rc::new(RefCell::new(Environment::new())),
+            globals: globals.clone(),
+            environment: globals,
         }
     }
 
@@ -354,6 +404,38 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
                 "Unrecognized binary operator.",
             ))),
         }
+    }
+
+    fn visit_call_expr(
+        &mut self,
+        callee: &Box<Expr>,
+        paren: &Token,
+        arguments: &Vec<Box<Expr>>,
+    ) -> InterpretResult<LoxObject> {
+        let callee = self._evaluate(callee)?;
+        let mut args = vec![];
+        for arg in arguments {
+            args.push(self._evaluate(arg)?);
+        }
+
+        if let LoxObject::Callable(callable) = callee {
+            if args.len() != callable.borrow().arity() {
+                return Err(InterpretResultStatus::Error(RuntimeError::new(
+                    paren,
+                    format!(
+                        "Expected {} arguments but got {}",
+                        callable.borrow().arity(),
+                        args.len()
+                    ).as_str(),
+                )));
+            }
+
+            return callable.borrow_mut().call(self, &args);
+        }
+        return Err(InterpretResultStatus::Error(RuntimeError::new(
+            paren,
+            "Callee is not a callable expression (function or method or class ctor).",
+        )));
     }
 
     fn visit_grouping_expr(&mut self, expr: &Box<Expr>) -> InterpretResult<LoxObject> {
