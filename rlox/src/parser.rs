@@ -1,9 +1,23 @@
+use std::fmt;
+
 use crate::error;
 use crate::expr::*;
 use crate::scanner::*;
 use crate::stmt::*;
 
 pub type Result<T> = std::result::Result<T, error::ParseError>;
+
+enum CallableType {
+    Function,
+}
+
+impl fmt::Display for CallableType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CallableType::Function => write!(f, "function")
+        }
+    }
+}
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -194,7 +208,9 @@ impl Parser {
     // Statements
 
     fn _declaration_stmt(&mut self) -> Result<Box<Stmt>> {
-        if self.match_token(TokenType::Var) {
+        if self.match_token(TokenType::Fun) {
+            self.function_stmt(CallableType::Function)
+        } else if self.match_token(TokenType::Var) {
             self.var_declaration_stmt()
         } else {
             self.statement_stmt()
@@ -372,6 +388,28 @@ impl Parser {
         let expr = self.expression_expr()?;
         self.consume(TokenType::Semicolon, "Expect \";\" after expression.")?;
         Ok(Box::new(Stmt::Expression { expression: expr }))
+    }
+
+    fn function_stmt(&mut self, function_type: CallableType) -> Result<Box<Stmt>> {
+        let name = self.consume(TokenType::Identifier, &format!("Expect \"{}\" name.", function_type))?.clone();
+        self.consume(TokenType::LeftParen, &format!("Expect \"(\" after {} name.", function_type))?;
+        let mut parameters = vec![];
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    self.error(self.peek(), "Cannot have more than 255 parameters in function declaration.");
+                }
+
+                parameters.push(self.consume(TokenType::Identifier, "Expect parameter name.")?.clone());
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect \")\" after parameter list.")?;
+        self.consume(TokenType::LeftBrace, &format!("Expect \"{{\" before {} body.", function_type))?;
+        let body = self.block_stmt()?;
+        Ok(Box::new(Stmt::Function{ name, parameters, body }))
     }
 
     fn block_stmt(&mut self) -> Result<Vec<Box<Stmt>>> {

@@ -31,7 +31,11 @@ pub type InterpretResult<T> = std::result::Result<T, InterpretResultStatus>;
 //-----------------------------------------------------------------------------
 pub trait LoxCallable {
     fn arity(&self) -> usize;
-    fn call(&mut self, interpreter: &mut Interpreter, arguments: &Vec<LoxObject>) -> InterpretResult<LoxObject>;
+    fn call(
+        &mut self,
+        interpreter: &mut Interpreter,
+        arguments: &Vec<LoxObject>,
+    ) -> InterpretResult<LoxObject>;
 }
 
 impl fmt::Debug for dyn LoxCallable {
@@ -119,6 +123,48 @@ impl fmt::Display for LoxObject {
 
 //-----------------------------------------------------------------------------
 
+struct LoxFunction {
+    name: Token,
+    parameters: Vec<Token>,
+    body: Vec<Box<Stmt>>,
+}
+
+impl LoxFunction {
+    fn new(name: &Token, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> Self {
+        LoxFunction {
+            name: name.clone(),
+            parameters: parameters.clone(),
+            body: body.clone(),
+        }
+    }
+}
+
+impl LoxCallable for LoxFunction {
+    fn arity(&self) -> usize {
+        return self.parameters.len();
+    }
+
+    fn call(
+        &mut self,
+        interpreter: &mut Interpreter,
+        arguments: &Vec<LoxObject>,
+    ) -> InterpretResult<LoxObject> {
+        let env = Rc::new(RefCell::new(Environment::as_child_of(
+            interpreter.globals.clone(),
+        )));
+        for i in 0..self.parameters.len() {
+            env.borrow_mut()
+                .define(&self.parameters[i].lexeme, &arguments[i]);
+        }
+
+        interpreter.execute_block(&self.body, env)?;
+        // todo!("Catch return");
+        return Ok(LoxObject::Nil);
+    }
+}
+
+//-----------------------------------------------------------------------------
+
 pub struct Interpreter {
     globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
@@ -126,7 +172,10 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         let globals = Rc::new(RefCell::new(Environment::new()));
-        globals.borrow_mut().define("clock", &LoxObject::Callable(Rc::new(RefCell::new(natives::NativeClock::new()))));
+        globals.borrow_mut().define(
+            "clock",
+            &LoxObject::Callable(Rc::new(RefCell::new(natives::NativeClock::new()))),
+        );
 
         Interpreter {
             globals: globals.clone(),
@@ -426,7 +475,8 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
                         "Expected {} arguments but got {}",
                         callable.borrow().arity(),
                         args.len()
-                    ).as_str(),
+                    )
+                    .as_str(),
                 )));
             }
 
@@ -544,6 +594,21 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
             Ok(_) => Ok(()),
             Err(e) => Err(InterpretResultStatus::Error(e)),
         }
+    }
+
+    fn visit_function_stmt(
+        &mut self,
+        name: &Token,
+        parameters: &Vec<Token>,
+        body: &Vec<Box<Stmt>>,
+    ) -> InterpretResult<()> {
+        let fun = LoxFunction::new(name, parameters, body);
+        let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
+        self.environment().borrow_mut().define(
+            &name.lexeme,
+            &callable,
+        );
+        Ok(())
     }
 
     fn visit_if_stmt(
