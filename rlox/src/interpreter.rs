@@ -127,7 +127,7 @@ impl fmt::Display for LoxObject {
 //-----------------------------------------------------------------------------
 
 struct LoxFunction {
-    name: Token,
+    _name: Token,
     parameters: Vec<Token>,
     body: Vec<Box<Stmt>>,
     closure: Rc<RefCell<Environment>>,
@@ -141,7 +141,7 @@ impl LoxFunction {
         closure: Rc<RefCell<Environment>>,
     ) -> Self {
         LoxFunction {
-            name: name.clone(),
+            _name: name.clone(),
             parameters: parameters.clone(),
             body: body.clone(),
             closure: closure,
@@ -183,7 +183,7 @@ impl LoxCallable for LoxFunction {
 //-----------------------------------------------------------------------------
 
 pub struct Interpreter {
-    globals: Rc<RefCell<Environment>>,
+    _globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
 impl Interpreter {
@@ -195,7 +195,7 @@ impl Interpreter {
         );
 
         Interpreter {
-            globals: globals.clone(),
+            _globals: globals.clone(),
             environment: globals,
         }
     }
@@ -854,5 +854,36 @@ mod tests {
             ),
         ];
         execute(&inputs);
+    }
+
+    #[test]
+    fn incorrect_function_arity_is_runtime_error() {
+        let inputs = vec![
+            r#"
+            fun no_args() {}
+            no_args(1);
+            "#,
+            r#"
+            fun one_arg(a) {}
+            one_arg();
+            "#,
+            r#"
+            fun two_args(a,b) {}
+            two_args();
+            "#,
+            r#"
+            fun two_args(a,b) {}
+            two_args(1,2,3);
+            "#,
+        ];
+
+        for program in inputs {
+            let mut scanner = scanner::Scanner::new(program);
+            let tokens = scanner.scan_tokens();
+            let mut parser = parser::Parser::new(tokens);
+            let ast = parser.parse().unwrap();
+            let mut interpreter = Interpreter::new();
+            assert!(interpreter.interpret(&ast).is_err());
+        }
     }
 }
