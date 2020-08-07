@@ -43,13 +43,13 @@ pub trait LoxCallable {
 
 impl fmt::Debug for dyn LoxCallable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<function arity {}>", self.arity())
+        write!(f, "<callable arity {}>", self.arity())
     }
 }
 
 impl fmt::Display for dyn LoxCallable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<function arity {}>", self.arity())
+        write!(f, "<callable arity {}>", self.arity())
     }
 }
 
@@ -130,14 +130,21 @@ struct LoxFunction {
     name: Token,
     parameters: Vec<Token>,
     body: Vec<Box<Stmt>>,
+    closure: Rc<RefCell<Environment>>,
 }
 
 impl LoxFunction {
-    fn new(name: &Token, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> Self {
+    fn new(
+        name: &Token,
+        parameters: &Vec<Token>,
+        body: &Vec<Box<Stmt>>,
+        closure: Rc<RefCell<Environment>>,
+    ) -> Self {
         LoxFunction {
             name: name.clone(),
             parameters: parameters.clone(),
             body: body.clone(),
+            closure: closure,
         }
     }
 }
@@ -153,7 +160,7 @@ impl LoxCallable for LoxFunction {
         arguments: &Vec<LoxObject>,
     ) -> InterpretResult<Option<LoxObject>> {
         let env = Rc::new(RefCell::new(Environment::as_child_of(
-            interpreter.globals.clone(),
+            self.closure.clone(),
         )));
         for i in 0..self.parameters.len() {
             env.borrow_mut()
@@ -169,8 +176,8 @@ impl LoxCallable for LoxFunction {
                     Some(v) => Ok(Some(v)),
                     None => Ok(None),
                 },
-                _ => Err(e)
-            }
+                _ => Err(e),
+            },
         }
     }
 }
@@ -237,7 +244,7 @@ impl Interpreter {
                     // we're in big trouble
                     return Err(RuntimeError::with_message("A \"return\" statement trickled all the way up to root. Something is horribly wrong."));
                 }
-        },
+            },
         }
     }
 
@@ -626,12 +633,11 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> InterpretResult<()> {
-        let fun = LoxFunction::new(name, parameters, body);
+        let fun = LoxFunction::new(name, parameters, body, self.environment.clone());
         let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
-        self.environment().borrow_mut().define(
-            &name.lexeme,
-            &callable,
-        );
+        self.environment()
+            .borrow_mut()
+            .define(&name.lexeme, &callable);
         Ok(())
     }
 
@@ -655,7 +661,11 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         Ok(())
     }
 
-    fn visit_return_stmt(&mut self, _keyword: &Token, value: &Option<Box<Expr>>) -> InterpretResult<()> {
+    fn visit_return_stmt(
+        &mut self,
+        _keyword: &Token,
+        value: &Option<Box<Expr>>,
+    ) -> InterpretResult<()> {
         let mut return_value = None;
         if let Some(value) = value {
             return_value = Some(self._evaluate(value)?);
