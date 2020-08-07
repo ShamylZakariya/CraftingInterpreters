@@ -12,13 +12,13 @@ impl LoxCallable for NativeClock {
     fn arity(&self) -> usize {
         0
     }
-    fn call(&mut self, _: &mut Interpreter, _: &Vec<LoxObject>) -> InterpretResult<LoxObject> {
+    fn call(&self, _: &mut Interpreter, _: &Vec<LoxObject>) -> InterpretResult<Option<LoxObject>> {
         let start = SystemTime::now();
         let since_the_epoch = start
             .duration_since(UNIX_EPOCH)
             .unwrap();
         let seconds = since_the_epoch.as_secs_f64();
         let fractional = since_the_epoch.subsec_nanos() as f64 / 1e9;
-        Ok(LoxObject::Number(seconds + fractional))
+        Ok(Some(LoxObject::Number(seconds + fractional)))
     }
 }

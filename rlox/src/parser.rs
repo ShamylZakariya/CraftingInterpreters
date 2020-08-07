@@ -237,6 +237,8 @@ impl Parser {
             self.if_stmt()
         } else if self.match_token(TokenType::Print) {
             self.print_stmt()
+        } else if self.match_token(TokenType::Return) {
+            self.return_stmt()
         } else if self.match_token(TokenType::While) {
             self.loop_depth += 1;
             let result = self.while_stmt();
@@ -349,6 +351,16 @@ impl Parser {
         let value = self.expression_expr()?;
         self.consume(TokenType::Semicolon, "Expect \";\" after value.")?;
         Ok(Box::new(Stmt::Print { expression: value }))
+    }
+
+    fn return_stmt(&mut self) -> Result<Box<Stmt>> {
+        let keyword = self.previous().clone();
+        let mut value = None;
+        if !self.check(TokenType::Semicolon) {
+            value = Some(self.expression_expr()?);
+        }
+        self.consume(TokenType::Semicolon, "Expect \";\" after return value.")?;
+        Ok(Box::new(Stmt::Return{ keyword, value }))
     }
 
     fn var_declaration_stmt(&mut self) -> Result<Box<Stmt>> {

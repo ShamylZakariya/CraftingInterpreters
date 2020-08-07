@@ -18,6 +18,9 @@ pub enum InterpretResultStatus {
 
     // Returned when control is flowing up the stack from a brack statement to the innermost loop.
     Break,
+
+    // Return statement in a function, carrying optional return value payload.
+    Return(Option<LoxObject>),
 }
 
 impl std::convert::From<error::RuntimeError> for InterpretResultStatus {
@@ -32,10 +35,10 @@ pub type InterpretResult<T> = std::result::Result<T, InterpretResultStatus>;
 pub trait LoxCallable {
     fn arity(&self) -> usize;
     fn call(
-        &mut self,
+        &self,
         interpreter: &mut Interpreter,
         arguments: &Vec<LoxObject>,
-    ) -> InterpretResult<LoxObject>;
+    ) -> InterpretResult<Option<LoxObject>>;
 }
 
 impl fmt::Debug for dyn LoxCallable {
@@ -145,10 +148,10 @@ impl LoxCallable for LoxFunction {
     }
 
     fn call(
-        &mut self,
+        &self,
         interpreter: &mut Interpreter,
         arguments: &Vec<LoxObject>,
-    ) -> InterpretResult<LoxObject> {
+    ) -> InterpretResult<Option<LoxObject>> {
         let env = Rc::new(RefCell::new(Environment::as_child_of(
             interpreter.globals.clone(),
         )));
@@ -157,9 +160,18 @@ impl LoxCallable for LoxFunction {
                 .define(&self.parameters[i].lexeme, &arguments[i]);
         }
 
-        interpreter.execute_block(&self.body, env)?;
-        // todo!("Catch return");
-        return Ok(LoxObject::Nil);
+        let ret = interpreter.execute_block(&self.body, env);
+        match ret {
+            // if function doesn't explicitly call return, we return None for it
+            Ok(()) => Ok(None),
+            Err(e) => match e {
+                InterpretResultStatus::Return(v) => match v {
+                    Some(v) => Ok(Some(v)),
+                    None => Ok(None),
+                },
+                _ => Err(e)
+            }
+        }
     }
 }
 
@@ -199,6 +211,10 @@ impl Interpreter {
                         // we're in big trouble
                         return Err(RuntimeError::with_message("A \"break\" statement trickled all the way up to root. Something is horribly wrong."));
                     }
+                    InterpretResultStatus::Return(_) => {
+                        // we're in big trouble
+                        return Err(RuntimeError::with_message("A \"return\" statement trickled all the way up to root. Something is horribly wrong."));
+                    }
                 }
             }
         }
@@ -217,7 +233,11 @@ impl Interpreter {
                     // we're in big trouble
                     Err(RuntimeError::with_message("A \"break\" statement trickled all the way up to root. Something is horribly wrong."))
                 }
-            },
+                InterpretResultStatus::Return(_) => {
+                    // we're in big trouble
+                    return Err(RuntimeError::with_message("A \"return\" statement trickled all the way up to root. Something is horribly wrong."));
+                }
+        },
         }
     }
 
@@ -480,7 +500,11 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
                 )));
             }
 
-            return callable.borrow_mut().call(self, &args);
+            if let Some(v) = callable.borrow().call(self, &args)? {
+                return Ok(v);
+            } else {
+                return Ok(LoxObject::Nil);
+            }
         }
         return Err(InterpretResultStatus::Error(RuntimeError::new(
             paren,
@@ -631,6 +655,14 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         Ok(())
     }
 
+    fn visit_return_stmt(&mut self, _keyword: &Token, value: &Option<Box<Expr>>) -> InterpretResult<()> {
+        let mut return_value = None;
+        if let Some(value) = value {
+            return_value = Some(self._evaluate(value)?);
+        }
+        Err(InterpretResultStatus::Return(return_value))
+    }
+
     fn visit_var_stmt(
         &mut self,
         name: &Token,
@@ -655,6 +687,10 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
                     InterpretResultStatus::Break => {
                         // time to break from loop.
                         break;
+                    }
+                    InterpretResultStatus::Return(v) => {
+                        // pass the return statement up
+                        return Err(InterpretResultStatus::Return(v));
                     }
                 },
             };
