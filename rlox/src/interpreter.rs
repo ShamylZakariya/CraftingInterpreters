@@ -196,6 +196,7 @@ impl LoxCallable for LoxFunction {
 //-----------------------------------------------------------------------------
 
 pub struct Interpreter {
+    // TODO: Why not make a stack of Environment, would be simpler than this linked list.
     _globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
