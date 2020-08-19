@@ -56,6 +56,33 @@ impl Environment {
             ))
         }
     }
+
+    pub fn get_at(&self, distance: usize, name:&str) -> Result<LoxObject> {
+        if distance == 0 {
+            if let Some(v) = self.values.get(name) {
+                return Ok(v.clone());
+            }
+        }
+        if let Some(ancestor) = &self.enclosing {
+            return ancestor.borrow().get_at(distance - 1, name);
+        }
+
+        Err(RuntimeError::with_message(
+            &format!("Unable to loop up variable \"{}\".", name),
+        ))
+    }
+
+    pub fn ancestor(&self, distance: usize) -> &Self {
+        todo!();
+        // if distance == 0 {
+        //     self
+        // } else {
+        //     if let Some(enclosing) = &self.enclosing {
+        //         return enclosing.borrow().ancestor(distance - 1);
+        //     }
+        //     todo!();
+        // }
+    }
 }
 
 #[cfg(test)]

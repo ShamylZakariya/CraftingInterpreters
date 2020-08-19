@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::hash;
 
 use crate::error;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -74,6 +75,35 @@ pub enum Literal {
 
 impl Eq for Literal {}
 
+impl hash::Hash for Literal {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: hash::Hasher,
+    {
+        match self {
+            Literal::Number(n)=> {
+                let integral = n.floor() as u64;
+                let fractional = (1_000_000_000.0 * (n - (integral as f64))) as u64;
+                integral.hash(state);
+                fractional.hash(state);
+            },
+            Literal::Str(s) => {
+                s.hash(state);
+            },
+            Literal::False => {
+                false.hash(state);
+            },
+            Literal::True => {
+                true.hash(state);
+            },
+            Literal::Nil => {
+                // TODO: How to handle this well?
+                (0xDEADBEEF as u64).hash(state);
+            }
+        }
+    }
+}
+
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -86,7 +116,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fs, io, io::Write, rc::Rc};
+use std::{fs, io, io::Write};
 
 mod environment;
 mod error;
@@ -125,7 +125,7 @@ impl Lox {
     }
 
     fn resolve(&mut self) -> parser::Result<()> {
-        let mut r = resolver::Resolver::new(&mut self.interpreter);
+        //let mut _r = Resolver::new(&mut self.interpreter);
         Ok(())
     }
 }
