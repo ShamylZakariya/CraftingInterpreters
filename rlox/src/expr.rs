@@ -64,7 +64,9 @@ impl Expr {
                 arguments,
             } => visitor.visit_call_expr(&self, &callee, &paren, &arguments),
             Expr::Grouping { expression } => visitor.visit_grouping_expr(&self, &expression),
-            Expr::Lambda { parameters, body } => visitor.visit_lambda_expr(&self, &parameters, &body),
+            Expr::Lambda { parameters, body } => {
+                visitor.visit_lambda_expr(&self, &parameters, &body)
+            }
             Expr::Literal { value } => visitor.visit_literal_expr(&self, &value),
             Expr::Logical {
                 left,
@@ -85,9 +87,15 @@ impl Expr {
 // -----------------------------------------------------------------------
 
 pub trait ExprVisitor<R> {
-    fn visit_assign_expr(&mut self, expr:&Expr, name: &Token, value: &Box<Expr>) -> R;
-    fn visit_binary_expr(&mut self, expr:&Expr, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
-    fn visit_grouping_expr(&mut self, expr:&Expr, content: &Box<Expr>) -> R;
+    fn visit_assign_expr(&mut self, expr: &Expr, name: &Token, value: &Box<Expr>) -> R;
+    fn visit_binary_expr(
+        &mut self,
+        expr: &Expr,
+        left: &Box<Expr>,
+        operator: &Token,
+        right: &Box<Expr>,
+    ) -> R;
+    fn visit_grouping_expr(&mut self, expr: &Expr, content: &Box<Expr>) -> R;
     fn visit_call_expr(
         &mut self,
         expr: &Expr,
@@ -95,9 +103,20 @@ pub trait ExprVisitor<R> {
         paren: &Token,
         arguments: &Vec<Box<Expr>>,
     ) -> R;
-    fn visit_lambda_expr(&mut self, expr:&Expr, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> R;
+    fn visit_lambda_expr(
+        &mut self,
+        expr: &Expr,
+        parameters: &Vec<Token>,
+        body: &Vec<Box<Stmt>>,
+    ) -> R;
     fn visit_literal_expr(&mut self, expr: &Expr, literal: &crate::scanner::Literal) -> R;
-    fn visit_logical_expr(&mut self, expr: &Expr, left: &Box<Expr>, operator: &Token, right: &Box<Expr>) -> R;
+    fn visit_logical_expr(
+        &mut self,
+        expr: &Expr,
+        left: &Box<Expr>,
+        operator: &Token,
+        right: &Box<Expr>,
+    ) -> R;
     fn visit_ternary_expr(
         &mut self,
         expr: &Expr,

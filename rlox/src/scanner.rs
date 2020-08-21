@@ -81,21 +81,21 @@ impl hash::Hash for Literal {
         H: hash::Hasher,
     {
         match self {
-            Literal::Number(n)=> {
+            Literal::Number(n) => {
                 let integral = n.floor() as u64;
                 let fractional = (1_000_000_000.0 * (n - (integral as f64))) as u64;
                 integral.hash(state);
                 fractional.hash(state);
-            },
+            }
             Literal::Str(s) => {
                 s.hash(state);
-            },
+            }
             Literal::False => {
                 false.hash(state);
-            },
+            }
             Literal::True => {
                 true.hash(state);
-            },
+            }
             Literal::Nil => {
                 // TODO: How to handle this well?
                 (0xDEADBEEF as u64).hash(state);

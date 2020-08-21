@@ -44,7 +44,7 @@ impl Stmt {
     {
         match self {
             Stmt::Block { statements } => visitor.visit_block_stmt(&self, statements),
-            Stmt::Break => visitor.visit_break_stmt(&self, ),
+            Stmt::Break => visitor.visit_break_stmt(&self),
             Stmt::Expression { expression } => visitor.visit_expression_stmt(&self, &expression),
             Stmt::Function {
                 name,
@@ -67,25 +67,25 @@ impl Stmt {
 // -----------------------------------------------------------------------
 
 pub trait StmtVisitor<R> {
-    fn visit_block_stmt(&mut self, stmt:&Stmt, statements: &Vec<Box<Stmt>>) -> R;
-    fn visit_break_stmt(&mut self, stmt:&Stmt, ) -> R;
-    fn visit_expression_stmt(&mut self, stmt:&Stmt, expression: &Box<Expr>) -> R;
+    fn visit_block_stmt(&mut self, stmt: &Stmt, statements: &Vec<Box<Stmt>>) -> R;
+    fn visit_break_stmt(&mut self, stmt: &Stmt) -> R;
+    fn visit_expression_stmt(&mut self, stmt: &Stmt, expression: &Box<Expr>) -> R;
     fn visit_function_stmt(
         &mut self,
-        stmt:&Stmt,
+        stmt: &Stmt,
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> R;
     fn visit_if_stmt(
         &mut self,
-        stmt:&Stmt,
+        stmt: &Stmt,
         condition: &Box<Expr>,
         then_branch: &Box<Stmt>,
         else_branch: &Option<Box<Stmt>>,
     ) -> R;
-    fn visit_print_stmt(&mut self, stmt:&Stmt, expression: &Box<Expr>) -> R;
-    fn visit_return_stmt(&mut self, stmt:&Stmt, keyword: &Token, value: &Option<Box<Expr>>) -> R;
-    fn visit_var_stmt(&mut self, stmt:&Stmt, name: &Token, initializer: &Option<Box<Expr>>) -> R;
-    fn visit_while_stmt(&mut self, stmt:&Stmt, condition: &Box<Expr>, body: &Box<Stmt>) -> R;
+    fn visit_print_stmt(&mut self, stmt: &Stmt, expression: &Box<Expr>) -> R;
+    fn visit_return_stmt(&mut self, stmt: &Stmt, keyword: &Token, value: &Option<Box<Expr>>) -> R;
+    fn visit_var_stmt(&mut self, stmt: &Stmt, name: &Token, initializer: &Option<Box<Expr>>) -> R;
+    fn visit_while_stmt(&mut self, stmt: &Stmt, condition: &Box<Expr>, body: &Box<Stmt>) -> R;
 }

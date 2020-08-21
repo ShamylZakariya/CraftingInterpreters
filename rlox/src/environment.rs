@@ -5,37 +5,45 @@ use crate::error::RuntimeError;
 use crate::interpreter::{LoxObject, Result};
 use crate::scanner::Token;
 
-pub struct Environment {
-    enclosing: Option<Rc<RefCell<Environment>>>,
+#[derive(Clone)]
+pub struct Environment(Rc<RefCell<EnvironmentData>>);
+
+struct EnvironmentData {
+    enclosing: Option<Environment>,
     values: HashMap<String, LoxObject>,
 }
 
 impl Environment {
     pub fn new() -> Self {
-        Environment {
+        Environment(Rc::new(RefCell::new(EnvironmentData {
             enclosing: None,
             values: HashMap::new(),
-        }
+        })))
     }
 
-    pub fn as_child_of(parent: Rc<RefCell<Environment>>) -> Self {
-        Environment {
+    pub fn as_child_of(parent: Environment) -> Self {
+        Environment(Rc::new(RefCell::new(EnvironmentData {
             enclosing: Some(parent),
             values: HashMap::new(),
-        }
+        })))
     }
 
     pub fn define(&mut self, name: &str, value: &LoxObject) {
-        self.values.insert(name.to_owned(), value.clone());
+        self.0
+            .borrow_mut()
+            .values
+            .insert(name.to_owned(), value.clone());
     }
 
     pub fn assign(&mut self, name: &Token, value: &LoxObject) -> Result<()> {
-        if self.values.contains_key(&name.lexeme) {
-            self.values.insert(name.lexeme.to_owned(), value.clone());
+        if self.0.borrow().values.contains_key(&name.lexeme) {
+            self.0
+                .borrow_mut()
+                .values
+                .insert(name.lexeme.to_owned(), value.clone());
             Ok(())
-        } else if let Some(parent) = &self.enclosing {
-            parent.borrow_mut().assign(name, value)?;
-            Ok(())
+        } else if let Some(enclosing) = &mut self.0.borrow_mut().enclosing {
+            enclosing.assign(name, value)
         } else {
             Err(RuntimeError::new(
                 name,
@@ -45,10 +53,10 @@ impl Environment {
     }
 
     pub fn get(&self, name: &Token) -> Result<LoxObject> {
-        if let Some(v) = self.values.get(&name.lexeme) {
+        if let Some(v) = self.0.borrow().values.get(&name.lexeme) {
             Ok(v.clone())
-        } else if let Some(parent) = &self.enclosing {
-            parent.borrow().get(name)
+        } else if let Some(parent) = &self.0.borrow().enclosing {
+            parent.get(name)
         } else {
             Err(RuntimeError::new(
                 name,
