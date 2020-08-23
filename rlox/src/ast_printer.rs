@@ -6,8 +6,7 @@ pub struct AstPrinter;
 
 impl AstPrinter {
     pub fn new() -> Self {
-        AstPrinter {
-        }
+        AstPrinter {}
     }
 
     pub fn generate(&mut self, statements: &Vec<Box<Stmt>>) -> String {
@@ -18,11 +17,39 @@ impl AstPrinter {
 
         buffer
     }
+
+    fn parenthesize_exprs(&mut self, name: &str, expressions: &Vec<&Box<Expr>>) -> String {
+        let mut sequence = String::from("(");
+        sequence.push_str(name);
+
+        for expr in expressions {
+            sequence.push_str(" ");
+            sequence.push_str(expr.accept(self).as_str());
+        }
+
+        // sequence.push_str("\n");
+        sequence.push_str(")");
+        return sequence;
+    }
+
+    fn parenthesize_stmts(&mut self, name: &str, statements: &Vec<Box<Stmt>>) -> String {
+        let mut sequence = String::from("(");
+        sequence.push_str(name);
+
+        for stmt in statements {
+            sequence.push_str(" ");
+            sequence.push_str(stmt.accept(self).as_str());
+        }
+
+        // sequence.push_str("\n");
+        sequence.push_str(")");
+        return sequence;
+    }
 }
 
 impl ExprVisitor<String> for AstPrinter {
     fn visit_assign_expr(&mut self, __expr: &Expr, name: &Token, value: &Box<Expr>) -> String {
-         parenthesize_exprs(self, &name.lexeme, &vec![value])
+        self.parenthesize_exprs(&name.lexeme, &vec![value])
     }
     fn visit_binary_expr(
         &mut self,
@@ -31,7 +58,7 @@ impl ExprVisitor<String> for AstPrinter {
         operator: &Token,
         right: &Box<Expr>,
     ) -> String {
-        parenthesize_exprs(self, &operator.lexeme, &vec![left, right])
+        self.parenthesize_exprs(&operator.lexeme, &vec![left, right])
     }
     fn visit_call_expr(
         &mut self,
@@ -45,10 +72,10 @@ impl ExprVisitor<String> for AstPrinter {
             exprs.push(arg);
         }
         exprs.push(callee);
-        parenthesize_exprs(self, "call", &exprs)
+        self.parenthesize_exprs("call", &exprs)
     }
     fn visit_grouping_expr(&mut self, _expr: &Expr, content: &Box<Expr>) -> String {
-        parenthesize_exprs(self, "group", &vec![content])
+        self.parenthesize_exprs("group", &vec![content])
     }
     fn visit_lambda_expr(
         &mut self,
@@ -56,7 +83,7 @@ impl ExprVisitor<String> for AstPrinter {
         _parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> String {
-        parenthesize_statements(self, "lambda", body)
+        self.parenthesize_stmts("lambda", body)
     }
     fn visit_literal_expr(&mut self, _expr: &Expr, literal: &crate::scanner::Literal) -> String {
         literal.to_string()
@@ -68,7 +95,7 @@ impl ExprVisitor<String> for AstPrinter {
         operator: &Token,
         right: &Box<Expr>,
     ) -> String {
-        parenthesize_exprs(self, &operator.lexeme, &vec![left, right])
+        self.parenthesize_exprs(&operator.lexeme, &vec![left, right])
     }
     fn visit_ternary_expr(
         &mut self,
@@ -77,25 +104,25 @@ impl ExprVisitor<String> for AstPrinter {
         then_value: &Box<Expr>,
         else_value: &Box<Expr>,
     ) -> String {
-        parenthesize_exprs(self, "ternary", &vec![condition, then_value, else_value])
+        self.parenthesize_exprs("ternary", &vec![condition, then_value, else_value])
     }
     fn visit_unary_expr(&mut self, _expr: &Expr, operator: &Token, right: &Box<Expr>) -> String {
-        parenthesize_exprs(self, &operator.lexeme, &vec![right])
+        self.parenthesize_exprs(&operator.lexeme, &vec![right])
     }
     fn visit_variable_expr(&mut self, _expr: &Expr, name: &Token) -> String {
-        parenthesize_exprs(self, &format!("variable \"{}\"", name.lexeme), &vec![])
+        self.parenthesize_exprs(&format!("variable \"{}\"", name.lexeme), &vec![])
     }
 }
 
 impl StmtVisitor<String> for AstPrinter {
     fn visit_block_stmt(&mut self, _stmt: &Stmt, statements: &Vec<Box<Stmt>>) -> String {
-        parenthesize_statements(self, "block", statements)
+        self.parenthesize_stmts("block", statements)
     }
     fn visit_break_stmt(&mut self, _stmt: &Stmt) -> String {
-        parenthesize_statements(self, "break", &vec![])
+        self.parenthesize_stmts("break", &vec![])
     }
     fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> String {
-        parenthesize_exprs(self, "expression", &vec![expression])
+        self.parenthesize_exprs("expression", &vec![expression])
     }
     fn visit_function_stmt(
         &mut self,
@@ -104,7 +131,7 @@ impl StmtVisitor<String> for AstPrinter {
         _parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> String {
-        parenthesize_statements(self, &format!("fn \"{}\"", name.lexeme), body)
+        self.parenthesize_stmts(&format!("fn \"{}\"", name.lexeme), body)
     }
     fn visit_if_stmt(
         &mut self,
@@ -117,59 +144,47 @@ impl StmtVisitor<String> for AstPrinter {
         if let Some(else_branch) = else_branch {
             statements.push(else_branch.clone())
         }
-        let name = parenthesize_exprs(self, "if", &vec![condition]);
-        parenthesize_statements(self, &name, &statements)
+        let name = self.parenthesize_exprs("if", &vec![condition]);
+        self.parenthesize_stmts(&name, &statements)
     }
 
     fn visit_print_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> String {
-        parenthesize_exprs(self, "print", &vec![expression])
+        self.parenthesize_exprs("print", &vec![expression])
     }
 
-    fn visit_return_stmt(&mut self, _stmt: &Stmt, _keyword: &Token, value: &Option<Box<Expr>>) -> String {
+    fn visit_return_stmt(
+        &mut self,
+        _stmt: &Stmt,
+        _keyword: &Token,
+        value: &Option<Box<Expr>>,
+    ) -> String {
         if let Some(expr) = value {
-            parenthesize_exprs(self, "return", &vec![expr])
+            self.parenthesize_exprs("return", &vec![expr])
         } else {
-            parenthesize_exprs(self, "return", &vec![])
+            self.parenthesize_exprs("return", &vec![])
         }
     }
 
-    fn visit_var_stmt(&mut self, _stmt: &Stmt, _name: &Token, initializer: &Option<Box<Expr>>) -> String {
+    fn visit_var_stmt(
+        &mut self,
+        _stmt: &Stmt,
+        _name: &Token,
+        initializer: &Option<Box<Expr>>,
+    ) -> String {
         if let Some(expr) = initializer {
-            parenthesize_exprs(self, "var", &vec![expr])
+            self.parenthesize_exprs("var", &vec![expr])
         } else {
-            parenthesize_exprs(self, "var", &vec![])
+            self.parenthesize_exprs("var", &vec![])
         }
     }
 
-    fn visit_while_stmt(&mut self, _stmt: &Stmt, condition: &Box<Expr>, body: &Box<Stmt>) -> String {
-        let name = parenthesize_exprs(self, "while", &vec![condition]);
-        parenthesize_statements(self, &name, &vec![body.clone()])
+    fn visit_while_stmt(
+        &mut self,
+        _stmt: &Stmt,
+        condition: &Box<Expr>,
+        body: &Box<Stmt>,
+    ) -> String {
+        let name = self.parenthesize_exprs("while", &vec![condition]);
+        self.parenthesize_stmts(&name, &vec![body.clone()])
     }
 }
-
-fn parenthesize_exprs(ast_printer: &mut AstPrinter, name: &str, expressions: &Vec<&Box<Expr>>) -> String {
-    let mut sequence = String::from("(");
-    sequence.push_str(name);
-
-    for expr in expressions {
-        sequence.push_str(" ");
-        sequence.push_str(expr.accept(ast_printer).as_str());
-    }
-
-    sequence.push_str(")");
-    return sequence;
-}
-
-fn parenthesize_statements(ast_printer: &mut AstPrinter, name: &str, statements: &Vec<Box<Stmt>>) -> String {
-    let mut sequence = String::from("(");
-    sequence.push_str(name);
-
-    for stmt in statements {
-        sequence.push_str(" ");
-        sequence.push_str(stmt.accept(ast_printer).as_str());
-    }
-
-    sequence.push_str(")");
-    return sequence;
-}
-
