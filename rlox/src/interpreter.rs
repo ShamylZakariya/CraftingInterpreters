@@ -277,8 +277,8 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn resolve_local(&mut self, variable: &Expr, depth: usize) {
-        self.locals.insert(variable.clone(), depth);
+    pub fn resolve_local(&mut self, variable: &Expr, distance: usize) {
+        self.locals.insert(variable.clone(), distance);
     }
 
     fn look_up_variable(&self, name: &Token, expr: &Expr) -> InterpretResult<LoxObject> {
@@ -333,7 +333,7 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
                 } else {
                     Err(InterpretResultStatus::Error(RuntimeError::new(
                         operator,
-                        "Left operand not a numbe.",
+                        "Left operand not a number.",
                     )))
                 }
             }
@@ -391,6 +391,12 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
                 } else if let LoxObject::Str(l) = left {
                     if let LoxObject::Str(r) = right {
                         Ok(LoxObject::Str(format!("{}{}", l, r)))
+                    } else if let LoxObject::Number(r) = right {
+                        Ok(LoxObject::Str(format!("{}{}", l, r)))
+                    } else if let LoxObject::Boolean(r) = right {
+                        Ok(LoxObject::Str(format!("{}{}", l, r)))
+                    } else if let LoxObject::Nil = right {
+                        Ok(LoxObject::Str(format!("{}nil", l)))
                     } else {
                         Err(InterpretResultStatus::Error(RuntimeError::new(
                             operator,
@@ -766,6 +772,7 @@ mod tests {
     use super::*;
     use crate::parser;
     use crate::scanner;
+    use crate::resolver;
 
     #[test]
     fn evaluates_expressions() {
@@ -800,7 +807,6 @@ mod tests {
         let inputs = vec![
             "\"Hello\" * 4",
             "4 * \"Hello\"",
-            "\"Hello\" + 4",
             "4 + \"Hello\"",
         ];
         for expression in inputs {
@@ -842,6 +848,10 @@ mod tests {
             let statements = parser.parse().unwrap();
 
             let mut interpreter = Interpreter::new();
+
+            let mut r = resolver::Resolver::new(&mut interpreter);
+            r.resolve(&statements).expect("Expected successful resolve pass");
+
             interpreter.interpret(&statements).unwrap();
 
             for (name, value) in expected_results {
