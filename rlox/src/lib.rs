@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::{fs, io};
 
+mod ast_printer;
 mod environment;
 mod error;
 mod expr;
@@ -11,6 +12,7 @@ mod resolver;
 mod scanner;
 mod stmt;
 
+use crate::ast_printer::AstPrinter;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
@@ -32,9 +34,9 @@ impl Lox {
         }
     }
 
-    pub fn run_file(&mut self, file: &str) {
+    pub fn run_file(&mut self, file: &str, display_ast:bool) {
         let contents = fs::read_to_string(file).expect("Unable to open lox file");
-        self.run(&contents);
+        self.run(&contents, display_ast);
 
         if self.had_error {
             std::process::exit(65);
@@ -44,7 +46,7 @@ impl Lox {
         }
     }
 
-    pub fn run_prompt(&mut self) {
+    pub fn run_prompt(&mut self, display_ast:bool) {
         loop {
             print!("> ");
             io::stdout().flush().unwrap();
@@ -57,23 +59,27 @@ impl Lox {
             if line.len() == 0 {
                 break;
             }
-            self.run(&line);
+            self.run(&line, display_ast);
             self.had_error = false;
         }
     }
 
-    fn run(&mut self, source: &str) {
+    fn run(&mut self, source: &str, display_ast:bool) {
         let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens();
         let mut parser = Parser::new(tokens);
         match parser.parse() {
             Ok(statements) => {
-                match self.resolve(&statements) {
-                    Ok(()) => {
-                        self.run_statements(&statements);
-                    },
-                    Err(_) => {
-                        self.had_error = true;
+                if display_ast {
+                    self.display_ast(&statements);
+                } else {
+                    match self.resolve(&statements) {
+                        Ok(()) => {
+                            self.run_statements(&statements);
+                        },
+                        Err(_) => {
+                            self.had_error = true;
+                        }
                     }
                 }
             }
@@ -81,6 +87,14 @@ impl Lox {
                 self.had_error = true;
             }
         }
+    }
+
+    fn display_ast(&mut self, statements: &Vec<Box<Stmt>>) {
+        let mut ast_printer = AstPrinter::new();
+
+        let result = ast_printer.generate(statements);
+        let sep = "-".repeat(72);
+        println!("{}\n{}\n{}", sep, result, sep);
     }
 
     fn run_statements(&mut self, statements: &Vec<Box<Stmt>>) {

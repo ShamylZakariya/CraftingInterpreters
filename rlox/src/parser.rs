@@ -306,7 +306,14 @@ impl Parser {
 
         let mut body = self.statement_stmt()?;
 
-        // desugar into a while loop
+        //
+        //   we're taking a for loop and desugaring it to a while loop
+        //   for (var i = 0; i < 10; i = i + 1) { print i; }
+        //
+        //   becomes:
+        //
+        //   { var i = 0; while(i < 10) { { print i; } i = i + 1; } }
+        //
 
         if let Some(increment) = increment {
             body = Box::new(Stmt::Block {

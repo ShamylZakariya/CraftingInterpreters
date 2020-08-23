@@ -1,16 +1,25 @@
-use rlox::Lox;
+extern crate structopt;
 
-use std::env;
+use rlox::Lox;
+use structopt::StructOpt;
+
+#[derive(StructOpt,Debug)]
+struct Options {
+    ///Display ast instead of executing
+    #[structopt(short, long)]
+    ast:bool,
+
+    /// Lox file to run, if none execute REPL
+    file: Option<String>,
+}
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let opt = Options::from_args();
     let mut lox = Lox::new();
 
-    if args.len() > 2 {
-        println!("Usage: rlox [script]");
-    } else if args.len() == 2 {
-        lox.run_file(&args[1]);
+    if let Some(file) = opt.file {
+        lox.run_file(&file, opt.ast);
     } else {
-        lox.run_prompt();
+        lox.run_prompt(opt.ast);
     }
 }
