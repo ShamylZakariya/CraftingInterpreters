@@ -95,7 +95,6 @@ pub trait ExprVisitor<R> {
         operator: &Token,
         right: &Box<Expr>,
     ) -> R;
-    fn visit_grouping_expr(&mut self, expr: &Expr, content: &Box<Expr>) -> R;
     fn visit_call_expr(
         &mut self,
         expr: &Expr,
@@ -103,6 +102,7 @@ pub trait ExprVisitor<R> {
         paren: &Token,
         arguments: &Vec<Box<Expr>>,
     ) -> R;
+    fn visit_grouping_expr(&mut self, expr: &Expr, content: &Box<Expr>) -> R;
     fn visit_lambda_expr(
         &mut self,
         expr: &Expr,

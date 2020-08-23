@@ -1,4 +1,5 @@
 use std::{cell::RefCell, fmt, rc::Rc};
+use std::collections::HashMap;
 
 use crate::environment::Environment;
 use crate::error;
@@ -191,8 +192,9 @@ impl LoxCallable for LoxFunction {
 //-----------------------------------------------------------------------------
 
 pub struct Interpreter {
-    _globals: Environment,
+    globals: Environment,
     environment: Environment,
+    locals: HashMap<Expr, usize>,
 }
 impl Interpreter {
     pub fn new() -> Self {
@@ -203,8 +205,9 @@ impl Interpreter {
         );
 
         Interpreter {
-            _globals: globals.clone(),
+            globals: globals.clone(),
             environment: globals,
+            locals: HashMap::new(),
         }
     }
 
@@ -273,17 +276,37 @@ impl Interpreter {
         self.environment = previous_env;
         Ok(())
     }
+
+    pub fn resolve_local(&mut self, variable: &Expr, depth: usize) {
+        self.locals.insert(variable.clone(), depth);
+    }
+
+    fn look_up_variable(&self, name: &Token, expr: &Expr) -> InterpretResult<LoxObject> {
+        if let Some(distance) = self.locals.get(expr) {
+            let v = self.environment.get_at(*distance, &name.lexeme)?;
+            Ok(v)
+        } else {
+            let v = self.globals.get(name)?;
+            Ok(v)
+        }
+    }
 }
 
 impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
     fn visit_assign_expr(
         &mut self,
-        _expr: &Expr,
+        expr: &Expr,
         name: &Token,
         value: &Box<Expr>,
     ) -> InterpretResult<LoxObject> {
         let value = self.evaluate(value)?;
-        self.environment.assign(name, &value)?;
+
+        if let Some(distance) = self.locals.get(expr) {
+            self.environment.assign_at(*distance, name, &value)?;
+        } else {
+            self.globals.assign(name, &value)?;
+        }
+
         Ok(value)
     }
 
@@ -619,15 +642,8 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         }
     }
 
-    fn visit_variable_expr(&mut self, _expr: &Expr, name: &Token) -> InterpretResult<LoxObject> {
-        let value = self.environment.get(name)?;
-        if let LoxObject::Undefined = value {
-            return Err(InterpretResultStatus::Error(RuntimeError::new(
-                name,
-                "Attempt to read from undefined variable.",
-            )));
-        }
-        Ok(value)
+    fn visit_variable_expr(&mut self, expr: &Expr, name: &Token) -> InterpretResult<LoxObject> {
+        self.look_up_variable(name, expr)
     }
 }
 

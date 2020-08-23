@@ -28,6 +28,33 @@ impl fmt::Display for ParseError {
 // --------------------------------------------------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
+pub struct ResolveError {
+    pub token: Option<Token>,
+    pub message: String,
+}
+
+impl ResolveError {
+    pub fn new(token: Option<Token>, message: &str) -> Self {
+        Self {
+            token: token,
+            message: message.to_owned(),
+        }
+    }
+}
+
+impl fmt::Display for ResolveError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(token) = &self.token {
+            write!(f, "token: {} error:\"{}\"", token, self.message)
+        } else {
+            write!(f, "error:\"{}\"", self.message)
+        }
+    }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+#[derive(Debug, Clone)]
 pub struct RuntimeError {
     pub token: Option<Token>,
     pub message: String,
@@ -61,7 +88,7 @@ impl fmt::Display for RuntimeError {
 // --------------------------------------------------------------------------------------------------------------------
 
 pub mod report {
-    use super::RuntimeError;
+    use super::*;
     use crate::scanner::{Token, TokenType};
 
     pub fn error(line: i32, context: &str, message: &str) {
@@ -80,6 +107,14 @@ pub mod report {
                 format!(" at '{}'", token.lexeme).as_str(),
                 message,
             ),
+        }
+    }
+
+    pub fn resolver_error(e: &ResolveError) {
+        if let Some(token) = &e.token {
+            eprintln!("{}\n[line {}]", e.message, token.line);
+        } else {
+            eprintln!("{}", e.message);
         }
     }
 
