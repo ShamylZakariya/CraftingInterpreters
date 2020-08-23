@@ -49,8 +49,10 @@ impl AstPrinter {
 
 impl ExprVisitor<String> for AstPrinter {
     fn visit_assign_expr(&mut self, __expr: &Expr, name: &Token, value: &Box<Expr>) -> String {
-        self.parenthesize_exprs(&name.lexeme, &vec![value])
+        let name = format!("assign \"{}\"", name.lexeme);
+        self.parenthesize_exprs(&name, &vec![value])
     }
+
     fn visit_binary_expr(
         &mut self,
         _expr: &Expr,
@@ -60,6 +62,7 @@ impl ExprVisitor<String> for AstPrinter {
     ) -> String {
         self.parenthesize_exprs(&operator.lexeme, &vec![left, right])
     }
+
     fn visit_call_expr(
         &mut self,
         _expr: &Expr,
@@ -74,9 +77,11 @@ impl ExprVisitor<String> for AstPrinter {
         exprs.push(callee);
         self.parenthesize_exprs("call", &exprs)
     }
+
     fn visit_grouping_expr(&mut self, _expr: &Expr, content: &Box<Expr>) -> String {
         self.parenthesize_exprs("group", &vec![content])
     }
+
     fn visit_lambda_expr(
         &mut self,
         _expr: &Expr,
@@ -85,9 +90,11 @@ impl ExprVisitor<String> for AstPrinter {
     ) -> String {
         self.parenthesize_stmts("lambda", body)
     }
+
     fn visit_literal_expr(&mut self, _expr: &Expr, literal: &crate::scanner::Literal) -> String {
         literal.to_string()
     }
+
     fn visit_logical_expr(
         &mut self,
         _expr: &Expr,
@@ -97,6 +104,7 @@ impl ExprVisitor<String> for AstPrinter {
     ) -> String {
         self.parenthesize_exprs(&operator.lexeme, &vec![left, right])
     }
+
     fn visit_ternary_expr(
         &mut self,
         _expr: &Expr,
@@ -106,11 +114,13 @@ impl ExprVisitor<String> for AstPrinter {
     ) -> String {
         self.parenthesize_exprs("ternary", &vec![condition, then_value, else_value])
     }
+
     fn visit_unary_expr(&mut self, _expr: &Expr, operator: &Token, right: &Box<Expr>) -> String {
         self.parenthesize_exprs(&operator.lexeme, &vec![right])
     }
+
     fn visit_variable_expr(&mut self, _expr: &Expr, name: &Token) -> String {
-        self.parenthesize_exprs(&format!("variable \"{}\"", name.lexeme), &vec![])
+        self.parenthesize_exprs(&format!("var_expr \"{}\"", name.lexeme), &vec![])
     }
 }
 
@@ -118,12 +128,15 @@ impl StmtVisitor<String> for AstPrinter {
     fn visit_block_stmt(&mut self, _stmt: &Stmt, statements: &Vec<Box<Stmt>>) -> String {
         self.parenthesize_stmts("block", statements)
     }
+
     fn visit_break_stmt(&mut self, _stmt: &Stmt) -> String {
         self.parenthesize_stmts("break", &vec![])
     }
+
     fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> String {
         self.parenthesize_exprs("expression", &vec![expression])
     }
+
     fn visit_function_stmt(
         &mut self,
         _stmt: &Stmt,
@@ -133,6 +146,7 @@ impl StmtVisitor<String> for AstPrinter {
     ) -> String {
         self.parenthesize_stmts(&format!("fn \"{}\"", name.lexeme), body)
     }
+
     fn visit_if_stmt(
         &mut self,
         _stmt: &Stmt,
@@ -168,13 +182,14 @@ impl StmtVisitor<String> for AstPrinter {
     fn visit_var_stmt(
         &mut self,
         _stmt: &Stmt,
-        _name: &Token,
+        name: &Token,
         initializer: &Option<Box<Expr>>,
     ) -> String {
+        let name = format!("var_stmt \"{}\"", name.lexeme);
         if let Some(expr) = initializer {
-            self.parenthesize_exprs("var", &vec![expr])
+            self.parenthesize_exprs(&name, &vec![expr])
         } else {
-            self.parenthesize_exprs("var", &vec![])
+            self.parenthesize_exprs(&name, &vec![])
         }
     }
 
