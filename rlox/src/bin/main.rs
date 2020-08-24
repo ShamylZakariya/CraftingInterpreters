@@ -3,11 +3,11 @@ extern crate structopt;
 use rlox::Lox;
 use structopt::StructOpt;
 
-#[derive(StructOpt,Debug)]
+#[derive(StructOpt, Debug)]
 struct Options {
     ///Display ast instead of executing
     #[structopt(short, long)]
-    ast:bool,
+    ast: bool,
 
     /// Lox file to run, if none execute REPL
     file: Option<String>,

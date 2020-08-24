@@ -757,6 +757,38 @@ mod tests {
         }
     }
 
+    fn parse(code: &str) -> Result<Vec<Box<Stmt>>> {
+        let mut scanner = Scanner::new(code);
+        let tokens = scanner.scan_tokens();
+        let mut parser = Parser::new(tokens);
+        parser.parse()
+    }
+
+    #[test]
+    fn desugars_for_loop_as_expected() {
+        let baseline = r#"
+{
+    var i = 0;
+    while (i < 3) {
+        {
+            print i;
+        }
+        i = i + 1;
+    }
+}
+        "#;
+
+        let for_loop = r#"
+for (var i = 0; i < 3; i = i + 1) {
+    print i;
+}
+        "#;
+
+        let baseline_stmts = parse(baseline).expect("Baseline code should parse");
+        let for_loop_stmts = parse(baseline).expect("For-loop code should parse");
+        assert_eq!(baseline_stmts, for_loop_stmts);
+    }
+
     #[test]
     fn fails_to_parse_bad_programs() {
         let programs = vec![

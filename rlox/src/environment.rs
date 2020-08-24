@@ -65,25 +65,31 @@ impl Environment {
         }
     }
 
-    pub fn get_at(&self, distance:usize, name:&str) -> Result<LoxObject> {
+    pub fn get_at(&self, distance: usize, name: &str) -> Result<LoxObject> {
         if let Some(ancestor) = self.ancestor(distance) {
             if let Some(value) = ancestor.0.borrow().values.get(name) {
                 Ok(value.clone())
             } else {
-                Err(RuntimeError::with_message(
-                    &format!("Environment::get_at - Undefined variable \"{}\".", name),
-                ))
+                Err(RuntimeError::with_message(&format!(
+                    "Environment::get_at - Undefined variable \"{}\".",
+                    name
+                )))
             }
         } else {
-            Err(RuntimeError::with_message(
-                &format!("No ancestor at distance \"{}\".", distance),
-            ))
+            Err(RuntimeError::with_message(&format!(
+                "No ancestor at distance \"{}\".",
+                distance
+            )))
         }
     }
 
-    pub fn assign_at(&mut self, distance:usize, name:&Token, value: &LoxObject) -> Result<()> {
+    pub fn assign_at(&mut self, distance: usize, name: &Token, value: &LoxObject) -> Result<()> {
         if let Some(ancestor) = self.ancestor(distance) {
-            ancestor.0.borrow_mut().values.insert(name.lexeme.to_owned(), value.clone());
+            ancestor
+                .0
+                .borrow_mut()
+                .values
+                .insert(name.lexeme.to_owned(), value.clone());
             Ok(())
         } else {
             Err(RuntimeError::new(
@@ -93,7 +99,7 @@ impl Environment {
         }
     }
 
-    fn ancestor(&self, distance:usize) -> Option<Self> {
+    fn ancestor(&self, distance: usize) -> Option<Self> {
         if distance == 0 {
             Some(self.clone())
         } else {

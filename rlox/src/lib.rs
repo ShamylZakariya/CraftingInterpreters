@@ -15,9 +15,9 @@ mod stmt;
 use crate::ast_printer::AstPrinter;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
+use crate::resolver::Resolver;
 use crate::scanner::Scanner;
 use crate::stmt::Stmt;
-use crate::resolver::Resolver;
 
 pub struct Lox {
     had_error: bool,
@@ -34,7 +34,7 @@ impl Lox {
         }
     }
 
-    pub fn run_file(&mut self, file: &str, display_ast:bool) {
+    pub fn run_file(&mut self, file: &str, display_ast: bool) {
         let contents = fs::read_to_string(file).expect("Unable to open lox file");
         self.run(&contents, display_ast);
 
@@ -46,7 +46,7 @@ impl Lox {
         }
     }
 
-    pub fn run_prompt(&mut self, display_ast:bool) {
+    pub fn run_prompt(&mut self, display_ast: bool) {
         loop {
             print!("> ");
             io::stdout().flush().unwrap();
@@ -64,7 +64,7 @@ impl Lox {
         }
     }
 
-    fn run(&mut self, source: &str, display_ast:bool) {
+    fn run(&mut self, source: &str, display_ast: bool) {
         let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens();
         let mut parser = Parser::new(tokens);
@@ -76,7 +76,7 @@ impl Lox {
                     match self.resolve(&statements) {
                         Ok(()) => {
                             self.run_statements(&statements);
-                        },
+                        }
                         Err(_) => {
                             self.had_error = true;
                         }

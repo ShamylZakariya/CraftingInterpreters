@@ -1,5 +1,5 @@
-use std::{cell::RefCell, fmt, rc::Rc};
 use std::collections::HashMap;
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::environment::Environment;
 use crate::error;
@@ -771,8 +771,8 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
 mod tests {
     use super::*;
     use crate::parser;
-    use crate::scanner;
     use crate::resolver;
+    use crate::scanner;
 
     #[test]
     fn evaluates_expressions() {
@@ -804,11 +804,7 @@ mod tests {
 
     #[test]
     fn bad_expressions_are_errors() {
-        let inputs = vec![
-            "\"Hello\" * 4",
-            "4 * \"Hello\"",
-            "4 + \"Hello\"",
-        ];
+        let inputs = vec!["\"Hello\" * 4", "4 * \"Hello\"", "4 + \"Hello\""];
         for expression in inputs {
             let mut scanner = scanner::Scanner::new(expression);
             let tokens = scanner.scan_tokens();
@@ -850,7 +846,8 @@ mod tests {
             let mut interpreter = Interpreter::new();
 
             let mut r = resolver::Resolver::new(&mut interpreter);
-            r.resolve(&statements).expect("Expected successful resolve pass");
+            r.resolve(&statements)
+                .expect("Expected successful resolve pass");
 
             interpreter.interpret(&statements).unwrap();
 

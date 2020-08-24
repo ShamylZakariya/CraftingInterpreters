@@ -72,11 +72,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_function(
-        &mut self,
-        parameters: &Vec<Token>,
-        body: &Vec<Box<Stmt>>,
-    ) -> Result<()> {
+    fn resolve_function(&mut self, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> Result<()> {
         self.begin_scope();
         for param in parameters {
             self.declare(param);
@@ -89,12 +85,7 @@ impl<'a> Resolver<'a> {
 }
 
 impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
-    fn visit_assign_expr(
-        &mut self,
-        expr: &Expr,
-        name: &Token,
-        value: &Box<Expr>,
-    ) -> Result<()> {
+    fn visit_assign_expr(&mut self, expr: &Expr, name: &Token, value: &Box<Expr>) -> Result<()> {
         self.resolve_expression(value)?;
         self.resolve_local(expr, name)
     }
@@ -195,11 +186,7 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
 }
 
 impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
-    fn visit_block_stmt(
-        &mut self,
-        _stmt: &Stmt,
-        statements: &Vec<Box<Stmt>>,
-    ) -> Result<()> {
+    fn visit_block_stmt(&mut self, _stmt: &Stmt, statements: &Vec<Box<Stmt>>) -> Result<()> {
         self.begin_scope();
         self.resolve_statements(statements)?;
         self.end_scope();
@@ -210,11 +197,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         Ok(())
     }
 
-    fn visit_expression_stmt(
-        &mut self,
-        _stmt: &Stmt,
-        expression: &Box<Expr>,
-    ) -> Result<()> {
+    fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> Result<()> {
         self.resolve_expression(expression)
     }
 
