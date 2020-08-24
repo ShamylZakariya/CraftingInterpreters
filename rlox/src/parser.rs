@@ -784,8 +784,11 @@ for (var i = 0; i < 3; i = i + 1) {
 }
         "#;
 
+
         let baseline_stmts = parse(baseline).expect("Baseline code should parse");
-        let for_loop_stmts = parse(baseline).expect("For-loop code should parse");
+        println!("baseline: {:?}", baseline_stmts);
+        let for_loop_stmts = parse(for_loop).expect("For-loop code should parse");
+        println!("for_loop: {:?}", for_loop_stmts);
         assert_eq!(baseline_stmts, for_loop_stmts);
     }
 

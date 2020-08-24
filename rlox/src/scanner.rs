@@ -116,7 +116,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Eq, Hash)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -137,6 +137,13 @@ impl Token {
             literal: literal,
             line: line,
         }
+    }
+}
+
+impl PartialEq for Token {
+    fn eq(&self, other: &Token) -> bool {
+        // Compare all but the line number - that's not important
+        self.token_type == other.token_type && self.lexeme == other.lexeme && self.literal == other.literal
     }
 }
 
