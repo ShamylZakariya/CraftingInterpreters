@@ -785,7 +785,7 @@ mod tests {
                     zero_stmt_line_and_id(stmt);
                 }
             }
-            Expr::Literal { value } => {
+            Expr::Literal { value: _ } => {
                 // nothing to do
             }
             Expr::Logical {
