@@ -94,7 +94,10 @@ impl Parser {
             return Ok(Box::new(Expr::Grouping { expression: expr }));
         }
 
-        Err(error::ParseError::new(self.peek().clone(), "Expect expression"))
+        Err(error::ParseError::new(
+            self.peek().clone(),
+            "Expect expression",
+        ))
     }
 
     fn unary_expr(&mut self) -> Result<Box<Expr>> {
@@ -128,7 +131,10 @@ impl Parser {
             loop {
                 if arguments.len() >= 255 {
                     // just report error, don't bail.
-                    error::report::parse_error_at_token(self.peek(), "Cannot have more than 255 arguments.");
+                    error::report::parse_error_at_token(
+                        self.peek(),
+                        "Cannot have more than 255 arguments.",
+                    );
                 }
                 arguments.push(self.expression_expr()?);
                 if !self.match_token(TokenType::Comma) {
@@ -272,7 +278,10 @@ impl Parser {
             )?;
             Ok(Box::new(Stmt::Break))
         } else {
-            Err(error::ParseError::new(self.peek().clone(), "Break statement only allowed inside loops."))
+            Err(error::ParseError::new(
+                self.peek().clone(),
+                "Break statement only allowed inside loops.",
+            ))
         }
     }
 
@@ -604,7 +613,10 @@ impl Parser {
             return Ok(self.advance());
         }
 
-        Err(error::ParseError::new(self.peek().clone(), on_error_message))
+        Err(error::ParseError::new(
+            self.peek().clone(),
+            on_error_message,
+        ))
     }
 
     fn is_at_end(&self) -> bool {
@@ -667,6 +679,143 @@ impl Parser {
 mod tests {
     use super::*;
 
+    fn zero_token_line_and_id(token: &mut Token) {
+        token.line = 0;
+        token.id = 0;
+    }
+
+    fn zero_stmts_line_and_id(stmts: &mut Vec<Box<Stmt>>) {
+        for stmt in stmts {
+            zero_stmt_line_and_id(stmt);
+        }
+    }
+
+    fn zero_stmt_line_and_id(stmt: &mut Stmt) {
+        match stmt {
+            Stmt::Block { statements } => {
+                for stmt in statements {
+                    zero_stmt_line_and_id(stmt);
+                }
+            }
+            Stmt::Break => {}
+            Stmt::Expression { expression } => {
+                zero_expr_line_and_id(expression);
+            }
+            Stmt::Function {
+                name,
+                parameters,
+                body,
+            } => {
+                zero_token_line_and_id(name);
+                for param in parameters {
+                    zero_token_line_and_id(param);
+                }
+                for stmt in body {
+                    zero_stmt_line_and_id(stmt);
+                }
+            }
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                zero_expr_line_and_id(condition);
+                zero_stmt_line_and_id(then_branch);
+                if let Some(else_branch) = else_branch {
+                    zero_stmt_line_and_id(else_branch);
+                }
+            }
+            Stmt::Print { expression } => {
+                zero_expr_line_and_id(expression);
+            }
+            Stmt::Return { keyword, value } => {
+                zero_token_line_and_id(keyword);
+                if let Some(value) = value {
+                    zero_expr_line_and_id(value);
+                }
+            }
+            Stmt::Var { name, initializer } => {
+                zero_token_line_and_id(name);
+                if let Some(initializer) = initializer {
+                    zero_expr_line_and_id(initializer);
+                }
+            }
+            Stmt::While { condition, body } => {
+                zero_expr_line_and_id(condition);
+                zero_stmt_line_and_id(body);
+            }
+        }
+    }
+
+    fn zero_expr_line_and_id(expr: &mut Expr) {
+        match expr {
+            Expr::Assign { name, value } => {
+                zero_token_line_and_id(name);
+                zero_expr_line_and_id(value);
+            }
+
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                zero_expr_line_and_id(left);
+                zero_expr_line_and_id(right);
+                zero_token_line_and_id(operator);
+            }
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                zero_expr_line_and_id(callee);
+                zero_token_line_and_id(paren);
+                for arg in arguments {
+                    zero_expr_line_and_id(arg);
+                }
+            }
+            Expr::Grouping { expression } => {
+                zero_expr_line_and_id(expression);
+            }
+            Expr::Lambda { parameters, body } => {
+                for arg in parameters {
+                    zero_token_line_and_id(arg);
+                }
+                for stmt in body {
+                    zero_stmt_line_and_id(stmt);
+                }
+            }
+            Expr::Literal { value } => {
+                // nothing to do
+            }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                zero_expr_line_and_id(left);
+                zero_token_line_and_id(operator);
+                zero_expr_line_and_id(right);
+            }
+            Expr::Ternary {
+                condition,
+                then_value,
+                else_value,
+            } => {
+                zero_expr_line_and_id(condition);
+                zero_expr_line_and_id(then_value);
+                zero_expr_line_and_id(else_value);
+            }
+            Expr::Unary { operator, right } => {
+                zero_token_line_and_id(operator);
+                zero_expr_line_and_id(right);
+            }
+            Expr::Variable { name } => {
+                zero_token_line_and_id(name);
+            }
+        }
+    }
+
     #[test]
     fn parses_expressions() {
         let expressions = vec![
@@ -676,13 +825,13 @@ mod tests {
                     left: Box::new(Expr::Literal {
                         value: Literal::Number(1.0),
                     }),
-                    operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                    operator: Token::new(TokenType::Plus, String::from("+"), None, 1, 0),
                     right: Box::new(Expr::Grouping {
                         expression: Box::new(Expr::Binary {
                             left: Box::new(Expr::Literal {
                                 value: Literal::Number(5.0),
                             }),
-                            operator: Token::new(TokenType::Slash, String::from("/"), None, 1),
+                            operator: Token::new(TokenType::Slash, String::from("/"), None, 1, 1),
                             right: Box::new(Expr::Literal {
                                 value: Literal::Number(2.0),
                             }),
@@ -698,17 +847,17 @@ mod tests {
                             left: Box::new(Expr::Literal {
                                 value: Literal::Number(1.0),
                             }),
-                            operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                            operator: Token::new(TokenType::Plus, String::from("+"), None, 1, 0),
                             right: Box::new(Expr::Literal {
                                 value: Literal::Number(2.0),
                             }),
                         }),
-                        operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                        operator: Token::new(TokenType::Plus, String::from("+"), None, 1, 1),
                         right: Box::new(Expr::Literal {
                             value: Literal::Number(3.0),
                         }),
                     }),
-                    operator: Token::new(TokenType::Plus, String::from("+"), None, 1),
+                    operator: Token::new(TokenType::Plus, String::from("+"), None, 1, 2),
                     right: Box::new(Expr::Literal {
                         value: Literal::Number(4.0),
                     }),
@@ -720,7 +869,7 @@ mod tests {
                     left: Box::new(Expr::Literal {
                         value: Literal::Number(5.0),
                     }),
-                    operator: Token::new(TokenType::EqualEqual, String::from("=="), None, 1),
+                    operator: Token::new(TokenType::EqualEqual, String::from("=="), None, 1, 0),
                     right: Box::new(Expr::Literal {
                         value: Literal::Nil,
                     }),
@@ -728,11 +877,15 @@ mod tests {
             ),
         ];
 
-        for (expression, expected_ast) in expressions {
+        for (expression, mut expected_ast) in expressions {
             let mut scanner = Scanner::new(expression);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            let parsed = parser.expression_expr().unwrap();
+            let mut parsed = parser.expression_expr().unwrap();
+
+            zero_expr_line_and_id(&mut parsed);
+            zero_expr_line_and_id(&mut expected_ast);
+
             assert_eq!(parsed, expected_ast);
         }
     }
@@ -779,11 +932,12 @@ for (var i = 0; i < 3; i = i + 1) {
 }
         "#;
 
+        let mut baseline_stmts = parse(baseline).expect("Baseline code should parse");
+        zero_stmts_line_and_id(&mut baseline_stmts);
 
-        let baseline_stmts = parse(baseline).expect("Baseline code should parse");
-        println!("baseline: {:?}", baseline_stmts);
-        let for_loop_stmts = parse(for_loop).expect("For-loop code should parse");
-        println!("for_loop: {:?}", for_loop_stmts);
+        let mut for_loop_stmts = parse(for_loop).expect("For-loop code should parse");
+        zero_stmts_line_and_id(&mut for_loop_stmts);
+
         assert_eq!(baseline_stmts, for_loop_stmts);
     }
 

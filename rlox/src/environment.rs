@@ -123,15 +123,15 @@ mod tests {
         let mut env = Environment::new();
         let definitions = vec![
             (
-                Token::new(TokenType::Identifier, String::from("a"), None, 1),
+                Token::new(TokenType::Identifier, String::from("a"), None, 1, 0),
                 LoxObject::Number(10.0),
             ),
             (
-                Token::new(TokenType::Identifier, String::from("b"), None, 1),
+                Token::new(TokenType::Identifier, String::from("b"), None, 1, 1),
                 LoxObject::Str(String::from("Hello World")),
             ),
             (
-                Token::new(TokenType::Identifier, String::from("c"), None, 1),
+                Token::new(TokenType::Identifier, String::from("c"), None, 1, 2),
                 LoxObject::Boolean(false),
             ),
         ];
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn assign_overwrites() {
         let mut env = Environment::new();
-        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1);
+        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1, 0);
         env.define(&name.lexeme, &LoxObject::Number(10.0));
         env.assign(&name, &LoxObject::Str(String::from("Hello World")))
             .unwrap();
@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn assign_cant_create_entry() {
         let mut env = Environment::new();
-        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1);
+        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1, 0);
         if let Ok(_) = env.assign(&name, &LoxObject::Nil) {
             panic!("Should not be able to assign to undefined variable.");
         }
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn define_overwrites() {
         let mut env = Environment::new();
-        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1);
+        let name = Token::new(TokenType::Identifier, String::from("a"), None, 1, 0);
         env.define(&name.lexeme, &LoxObject::Number(10.0));
         env.define(&name.lexeme, &LoxObject::Str(String::from("Hello World")));
         env.define(&name.lexeme, &LoxObject::Boolean(false));

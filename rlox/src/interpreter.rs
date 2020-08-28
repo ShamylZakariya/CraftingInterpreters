@@ -852,8 +852,10 @@ mod tests {
 
             interpreter.interpret(&statements).unwrap();
 
+            let mut token_id = 0;
             for (name, value) in expected_results {
-                let token = Token::new(TokenType::Identifier, String::from(*name), None, 1);
+                let token = Token::new(TokenType::Identifier, String::from(*name), None, 1, token_id);
+                token_id += 1;
                 assert_eq!(interpreter.environment().get(&token).unwrap(), *value);
             }
         }
