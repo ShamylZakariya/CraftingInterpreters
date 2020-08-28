@@ -64,7 +64,9 @@ impl Expr {
                 arguments,
             } => visitor.visit_call_expr(&self, &callee, &paren, &arguments),
             Expr::Grouping { expression } => visitor.visit_grouping_expr(&self, &expression),
-            Expr::Lambda { parameters, body } => visitor.visit_lambda_expr(&self, &parameters, &body),
+            Expr::Lambda { parameters, body } => {
+                visitor.visit_lambda_expr(&self, &parameters, &body)
+            }
             Expr::Literal { value } => visitor.visit_literal_expr(&self, &value),
             Expr::Logical {
                 left,
