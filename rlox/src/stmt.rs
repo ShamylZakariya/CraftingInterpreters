@@ -6,7 +6,7 @@ pub enum Stmt {
     Block {
         statements: Vec<Box<Stmt>>,
     },
-    Break,
+    Break { keyword: Token },
     Expression {
         expression: Box<Expr>,
     },
@@ -44,7 +44,7 @@ impl Stmt {
     {
         match self {
             Stmt::Block { statements } => visitor.visit_block_stmt(&self, statements),
-            Stmt::Break => visitor.visit_break_stmt(&self),
+            Stmt::Break { keyword } => visitor.visit_break_stmt(&self, keyword),
             Stmt::Expression { expression } => visitor.visit_expression_stmt(&self, &expression),
             Stmt::Function {
                 name,
@@ -68,7 +68,7 @@ impl Stmt {
 
 pub trait StmtVisitor<R> {
     fn visit_block_stmt(&mut self, stmt: &Stmt, statements: &Vec<Box<Stmt>>) -> R;
-    fn visit_break_stmt(&mut self, stmt: &Stmt) -> R;
+    fn visit_break_stmt(&mut self, stmt: &Stmt, keyword: &Token) -> R;
     fn visit_expression_stmt(&mut self, stmt: &Stmt, expression: &Box<Expr>) -> R;
     fn visit_function_stmt(
         &mut self,

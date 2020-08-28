@@ -664,7 +664,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         self.execute_block(statements, env)
     }
 
-    fn visit_break_stmt(&mut self, _stmt: &Stmt) -> InterpretResult<()> {
+    fn visit_break_stmt(&mut self, _stmt: &Stmt, _keyword: &Token) -> InterpretResult<()> {
         Err(InterpretResultStatus::Break)
     }
 

@@ -129,7 +129,7 @@ impl StmtVisitor<String> for AstPrinter {
         self.parenthesize_stmts("block", statements)
     }
 
-    fn visit_break_stmt(&mut self, _stmt: &Stmt) -> String {
+    fn visit_break_stmt(&mut self, _stmt: &Stmt, _keyword: &Token) -> String {
         self.parenthesize_stmts("break", &vec![])
     }
 

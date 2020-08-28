@@ -22,15 +22,13 @@ impl fmt::Display for CallableType {
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    loop_depth: usize,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens: tokens,
-            current: 0,
-            loop_depth: 0,
+            current: 0
         }
     }
 
@@ -239,10 +237,7 @@ impl Parser {
 
     fn statement_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.match_token(TokenType::For) {
-            self.loop_depth += 1;
-            let result = self.for_stmt();
-            self.loop_depth -= 1;
-            result
+            self.for_stmt()
         } else if self.match_token(TokenType::If) {
             self.if_stmt()
         } else if self.match_token(TokenType::Print) {
@@ -250,10 +245,7 @@ impl Parser {
         } else if self.match_token(TokenType::Return) {
             self.return_stmt()
         } else if self.match_token(TokenType::While) {
-            self.loop_depth += 1;
-            let result = self.while_stmt();
-            self.loop_depth -= 1;
-            result
+            self.while_stmt()
         } else if self.match_token(TokenType::Break) {
             self.break_stmt()
         } else if self.match_token(TokenType::LeftBrace) {
@@ -266,18 +258,12 @@ impl Parser {
     }
 
     fn break_stmt(&mut self) -> Result<Box<Stmt>> {
-        if self.loop_depth > 0 {
-            self.consume(
-                TokenType::Semicolon,
-                "Expect \";\" after \"break\" statement.",
-            )?;
-            Ok(Box::new(Stmt::Break))
-        } else {
-            Err(error::ParseError::new(
-                self.peek().clone(),
-                "Break statement only allowed inside loops.",
-            ))
-        }
+        let break_token = self.peek().clone();
+        self.consume(
+            TokenType::Semicolon,
+            "Expect \";\" after \"break\" statement.",
+        )?;
+        Ok(Box::new(Stmt::Break { keyword: break_token }))
     }
 
     fn for_stmt(&mut self) -> Result<Box<Stmt>> {
@@ -686,7 +672,7 @@ mod tests {
                     zero_stmt_line_and_id(stmt);
                 }
             }
-            Stmt::Break => {}
+            Stmt::Break { keyword: _ } => {}
             Stmt::Expression { expression } => {
                 zero_expr_line_and_id(expression);
             }
@@ -937,23 +923,6 @@ for (var i = 0; i < 3; i = i + 1) {
             var a = 0;
             var b = 1 // missing semicolon
             var c = 2;
-            "#,
-            r#"
-            var a = 0;
-            var b = 1;
-
-            // break disallowed outside a while loop
-            break;
-
-            while (a < 10000) {
-              print a;
-              var temp = a;
-              a = b;
-              b = temp + b;
-              if (a == 377) {
-                  break;
-              }
-            }
             "#,
         ];
 

@@ -19,6 +19,7 @@ pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
     scopes: Vec<HashMap<String, bool>>,
     current_function: FunctionType,
+    loop_depths: Vec<i32>,
 }
 
 impl<'a> Resolver<'a> {
@@ -27,6 +28,7 @@ impl<'a> Resolver<'a> {
             interpreter,
             scopes: vec![],
             current_function: FunctionType::NoFunction,
+            loop_depths: vec![0],
         }
     }
 
@@ -100,6 +102,7 @@ impl<'a> Resolver<'a> {
         let enclosing_function = self.current_function;
         self.current_function = function_type;
 
+        self.loop_depths.push(0);
         self.begin_scope();
         for param in parameters {
             self.declare(param)?;
@@ -108,6 +111,7 @@ impl<'a> Resolver<'a> {
         let r = self.resolve_statements(body);
 
         self.end_scope();
+        self.loop_depths.pop();
         self.current_function = enclosing_function;
 
         r
@@ -222,7 +226,15 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         Ok(())
     }
 
-    fn visit_break_stmt(&mut self, _stmt: &Stmt) -> Result<()> {
+    fn visit_break_stmt(&mut self, _stmt: &Stmt, keyword: &Token) -> Result<()> {
+        if let Some(loop_depth) = self.loop_depths.last() {
+            if *loop_depth == 0 {
+                return Err(error::ResolveError::new(
+                    Some(keyword.clone()),
+                    "Illegal \"break\" statement outside of a loop.",
+                ));
+            }
+        }
         Ok(())
     }
 
@@ -301,8 +313,23 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         condition: &Box<Expr>,
         body: &Box<Stmt>,
     ) -> Result<()> {
-        self.resolve_expression(condition)?;
-        self.resolve_statement(body)
+        if let Some(loop_depth) = self.loop_depths.last_mut() {
+            *loop_depth += 1;
+        }
+
+        let mut r = self.resolve_expression(condition);
+        match r {
+            Ok(()) => {
+                r = self.resolve_statement(body);
+            }
+            _ => {}
+        }
+
+        if let Some(loop_depth) = self.loop_depths.last_mut() {
+            *loop_depth -= 1;
+        }
+
+        r
     }
 }
 
@@ -312,7 +339,7 @@ mod tests {
     use crate::parser;
     use crate::scanner;
 
-    fn verify(program: &str, expected_error:bool) {
+    fn verify(program: &str, expected_error: bool) {
         let mut scanner = scanner::Scanner::new(program);
         let tokens = scanner.scan_tokens();
         let mut parser = parser::Parser::new(tokens);
@@ -329,16 +356,22 @@ mod tests {
     #[test]
     fn return_outside_function_is_error() {
         let inputs = vec![
-            (r#"
+            (
+                r#"
             var a = 10;
             return "hello"; // return at global scope
-            "#, true),
-            (r#"
+            "#,
+                true,
+            ),
+            (
+                r#"
             var a = 10;
             fun foo() {
                 return "hello"; // this is OK
             }
-            "#, false)
+            "#,
+                false,
+            ),
         ];
 
         for (program, is_error) in inputs {
@@ -349,20 +382,85 @@ mod tests {
     #[test]
     fn redefined_variable_is_error() {
         let inputs = vec![
-            (r#"
+            (
+                r#"
             var a = 10;
             var a = 20; // OK to redefine at global scope
-            "#, false),
-            (r#"
+            "#,
+                false,
+            ),
+            (
+                r#"
             fun foo() {
                 var a = 10;
                 var a = 11;
             }
-            "#, true)
+            "#,
+                true,
+            ),
         ];
 
         for (program, is_error) in inputs {
             verify(program, is_error);
         }
     }
+
+    #[test]
+    fn break_outside_loop_is_error() {
+        let inputs = vec![
+            (
+                r#"
+                var a = 10;
+                break; // no good, outside a loop
+                "#,
+                true,
+            ),
+            (
+                r#"
+                while(true) {
+                    break; // OK, inside loop
+                }
+                "#,
+                false,
+            ),
+            (
+                r#"
+                for(var i = 0; i < 10; i = i + 1) {
+                    break; // OK, inside loop
+                }
+                "#,
+                false,
+            ),
+            (
+                r#"
+                fun foo() {
+                    break; // no good, not inside a loop.
+                }
+                for (var i = 0; i < 3; i = i + 1) {
+                    foo();
+                }
+                "#,
+                true,
+            ),
+            (
+                r#"
+                fun foo() {
+                    fun bar() {
+                        break; // no good, not inside a loop
+                    }
+                    for (var i = 0; i < 3; i = i + 1) {
+                        bar();
+                    }
+                }
+                foo();
+                "#,
+                true,
+            ),
+        ];
+
+        for (program, is_error) in inputs {
+            verify(program, is_error);
+        }
+    }
+
 }
