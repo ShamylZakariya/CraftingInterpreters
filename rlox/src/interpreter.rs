@@ -283,16 +283,11 @@ impl Interpreter {
     }
 
     fn look_up_variable(&self, name: &Token, expr: &Expr) -> InterpretResult<LoxObject> {
-        println!("Interpreter::look_up_variable name: {} expr: {:?}", name, expr);
         if let Some(distance) = self.locals.get(expr) {
-            println!("\tFOUND distance in locals: {}", distance);
             let v = self.environment.get_at(*distance, &name.lexeme)?;
-            println!("\t\tlooked up local var: {}", v);
             Ok(v)
         } else {
-            println!("\tNOT FOUND; assuming global");
             let v = self.globals.get(name)?;
-            println!("\t\tlooked up global var: {}", v);
             Ok(v)
         }
     }

@@ -116,12 +116,13 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub literal: Option<Literal>,
     pub line: i32,
+    pub id: i32, // unique id
 }
 
 impl Token {
@@ -130,32 +131,15 @@ impl Token {
         lexeme: String,
         literal: Option<Literal>,
         line: i32,
+        id: i32,
     ) -> Token {
         Token {
-            token_type: token_type,
-            lexeme: lexeme,
-            literal: literal,
-            line: line,
+            token_type,
+            lexeme,
+            literal,
+            line,
+            id,
         }
-    }
-}
-
-impl Hash for Token {
-    fn hash<H>(&self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        self.token_type.hash(state);
-        self.lexeme.hash(state);
-        self.literal.hash(state);
-        // Ignore line number
-    }
-}
-
-impl PartialEq for Token {
-    fn eq(&self, other: &Token) -> bool {
-        // Compare all but the line number - that's not important
-        self.token_type == other.token_type && self.lexeme == other.lexeme && self.literal == other.literal
     }
 }
 
@@ -164,19 +148,21 @@ impl fmt::Display for Token {
         if let Some(literal) = &self.literal {
             write!(
                 f,
-                "{} lexeme: \"{}\" literal: {} line: {}",
+                "{} lexeme: \"{}\" literal: {} line: {} id: {}",
                 self.token_type.to_string(),
                 self.lexeme,
                 literal.to_string(),
-                self.line
+                self.line,
+                self.id,
             )
         } else {
             write!(
                 f,
-                "{} lexeme: \"{}\" line: {}",
+                "{} lexeme: \"{}\" line: {} id: {}",
                 self.token_type.to_string(),
                 self.lexeme,
-                self.line
+                self.line,
+                self.id,
             )
         }
     }
@@ -187,6 +173,7 @@ pub struct Scanner<'a> {
     current_grapheme: &'a str,
     remainder: &'a str,
     line: i32,
+    current_id: i32,
     keywords: HashMap<String, TokenType>,
 }
 
@@ -228,8 +215,15 @@ impl Scanner<'_> {
             current_grapheme: "",
             remainder: source,
             line: 1,
+            current_id: 0,
             keywords: Scanner::create_keywords(),
         }
+    }
+
+    fn next_token_id(&mut self) -> i32 {
+        let id = self.current_id;
+        self.current_id += 1;
+        id
     }
 
     fn create_keywords() -> HashMap<String, TokenType> {
@@ -348,6 +342,7 @@ impl Scanner<'_> {
             String::from(string_value.as_str()),
             Some(Literal::Str(string_value)),
             self.line,
+            self.next_token_id(),
         ));
     }
 
@@ -381,6 +376,7 @@ impl Scanner<'_> {
                 String::from(string_value.as_str()),
                 Some(Literal::Number(v)),
                 self.line,
+                self.next_token_id(),
             ));
         } else {
             let error_message = format!("Unable to parse number literal \"{}\"", string_value);
@@ -402,7 +398,13 @@ impl Scanner<'_> {
         let identifier_type = self.keywords.get(&identifier);
         match identifier_type {
             Some(token_type) => {
-                tokens.push(Token::new(*token_type, identifier, None, self.line));
+                tokens.push(Token::new(
+                    *token_type,
+                    identifier,
+                    None,
+                    self.line,
+                    self.next_token_id(),
+                ));
             }
             None => {
                 tokens.push(Token::new(
@@ -410,6 +412,7 @@ impl Scanner<'_> {
                     identifier,
                     None,
                     self.line,
+                    self.next_token_id(),
                 ));
             }
         };
@@ -422,18 +425,90 @@ impl Scanner<'_> {
         loop {
             if let Some(g) = self.next_grapheme() {
                 match g.as_str() {
-                    "(" => tokens.push(Token::new(TokenType::LeftParen, g, None, self.line)),
-                    ")" => tokens.push(Token::new(TokenType::RightParen, g, None, self.line)),
-                    "{" => tokens.push(Token::new(TokenType::LeftBrace, g, None, self.line)),
-                    "}" => tokens.push(Token::new(TokenType::RightBrace, g, None, self.line)),
-                    "," => tokens.push(Token::new(TokenType::Comma, g, None, self.line)),
-                    "." => tokens.push(Token::new(TokenType::Dot, g, None, self.line)),
-                    "-" => tokens.push(Token::new(TokenType::Minus, g, None, self.line)),
-                    "+" => tokens.push(Token::new(TokenType::Plus, g, None, self.line)),
-                    ";" => tokens.push(Token::new(TokenType::Semicolon, g, None, self.line)),
-                    "*" => tokens.push(Token::new(TokenType::Star, g, None, self.line)),
-                    "?" => tokens.push(Token::new(TokenType::QuestionMark, g, None, self.line)),
-                    ":" => tokens.push(Token::new(TokenType::Colon, g, None, self.line)),
+                    "(" => tokens.push(Token::new(
+                        TokenType::LeftParen,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    ")" => tokens.push(Token::new(
+                        TokenType::RightParen,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "{" => tokens.push(Token::new(
+                        TokenType::LeftBrace,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "}" => tokens.push(Token::new(
+                        TokenType::RightBrace,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "," => tokens.push(Token::new(
+                        TokenType::Comma,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "." => tokens.push(Token::new(
+                        TokenType::Dot,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "-" => tokens.push(Token::new(
+                        TokenType::Minus,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "+" => tokens.push(Token::new(
+                        TokenType::Plus,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    ";" => tokens.push(Token::new(
+                        TokenType::Semicolon,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "*" => tokens.push(Token::new(
+                        TokenType::Star,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    "?" => tokens.push(Token::new(
+                        TokenType::QuestionMark,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
+                    ":" => tokens.push(Token::new(
+                        TokenType::Colon,
+                        g,
+                        None,
+                        self.line,
+                        self.next_token_id(),
+                    )),
 
                     "!" => {
                         if self.match_next_grapheme("=") {
@@ -442,9 +517,16 @@ impl Scanner<'_> {
                                 "!=".to_string(),
                                 None,
                                 self.line,
+                                self.next_token_id(),
                             ));
                         } else {
-                            tokens.push(Token::new(TokenType::Bang, g, None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::Bang,
+                                g,
+                                None,
+                                self.line,
+                                self.next_token_id(),
+                            ));
                         }
                     }
 
@@ -455,9 +537,16 @@ impl Scanner<'_> {
                                 "==".to_string(),
                                 None,
                                 self.line,
+                                self.next_token_id(),
                             ));
                         } else {
-                            tokens.push(Token::new(TokenType::Equal, g, None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::Equal,
+                                g,
+                                None,
+                                self.line,
+                                self.next_token_id(),
+                            ));
                         }
                     }
 
@@ -468,9 +557,16 @@ impl Scanner<'_> {
                                 "<=".to_string(),
                                 None,
                                 self.line,
+                                self.next_token_id(),
                             ));
                         } else {
-                            tokens.push(Token::new(TokenType::Less, g, None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::Less,
+                                g,
+                                None,
+                                self.line,
+                                self.next_token_id(),
+                            ));
                         }
                     }
 
@@ -481,9 +577,16 @@ impl Scanner<'_> {
                                 ">=".to_string(),
                                 None,
                                 self.line,
+                                self.next_token_id(),
                             ));
                         } else {
-                            tokens.push(Token::new(TokenType::Greater, g, None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::Greater,
+                                g,
+                                None,
+                                self.line,
+                                self.next_token_id(),
+                            ));
                         }
                     }
 
@@ -494,7 +597,13 @@ impl Scanner<'_> {
                                 self.advance();
                             }
                         } else {
-                            tokens.push(Token::new(TokenType::Slash, g, None, self.line));
+                            tokens.push(Token::new(
+                                TokenType::Slash,
+                                g,
+                                None,
+                                self.line,
+                                self.next_token_id(),
+                            ));
                         }
                     }
 
@@ -521,7 +630,13 @@ impl Scanner<'_> {
             }
         }
 
-        tokens.push(Token::new(TokenType::Eof, String::new(), None, self.line));
+        tokens.push(Token::new(
+            TokenType::Eof,
+            String::new(),
+            None,
+            self.line,
+            self.next_token_id(),
+        ));
         tokens
     }
 }
