@@ -462,5 +462,4 @@ mod tests {
             verify(program, is_error);
         }
     }
-
 }

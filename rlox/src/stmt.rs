@@ -6,7 +6,9 @@ pub enum Stmt {
     Block {
         statements: Vec<Box<Stmt>>,
     },
-    Break { keyword: Token },
+    Break {
+        keyword: Token,
+    },
     Expression {
         expression: Box<Expr>,
     },

@@ -28,7 +28,7 @@ impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens: tokens,
-            current: 0
+            current: 0,
         }
     }
 
@@ -263,7 +263,9 @@ impl Parser {
             TokenType::Semicolon,
             "Expect \";\" after \"break\" statement.",
         )?;
-        Ok(Box::new(Stmt::Break { keyword: break_token }))
+        Ok(Box::new(Stmt::Break {
+            keyword: break_token,
+        }))
     }
 
     fn for_stmt(&mut self) -> Result<Box<Stmt>> {
