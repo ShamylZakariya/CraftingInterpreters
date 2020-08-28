@@ -56,7 +56,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [ "scratch.lox" ],
+            "args": [ "scratch/scratch.lox" ],
             "cwd": "${workspaceFolder}"
         },
         {
