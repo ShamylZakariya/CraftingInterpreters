@@ -8,9 +8,17 @@ use crate::stmt::*;
 
 pub type Result<T> = std::result::Result<T, error::ResolveError>;
 
+#[derive(Copy, Clone, Debug)]
+enum FunctionType {
+    NoFunction,
+    Function,
+    Lambda,
+}
+
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
     scopes: Vec<HashMap<String, bool>>,
+    current_function: FunctionType,
 }
 
 impl<'a> Resolver<'a> {
@@ -18,6 +26,7 @@ impl<'a> Resolver<'a> {
         Resolver {
             interpreter,
             scopes: vec![],
+            current_function: FunctionType::NoFunction,
         }
     }
 
@@ -48,10 +57,20 @@ impl<'a> Resolver<'a> {
         expression.accept(self)
     }
 
-    fn declare(&mut self, name: &Token) {
+    fn declare(&mut self, name: &Token) -> Result<()> {
         if let Some(scope) = self.scopes.last_mut() {
+            if scope.contains_key(&name.lexeme) {
+                return Err(error::ResolveError::new(
+                    Some(name.clone()),
+                    &format!(
+                        "Variable named \"{}\" already defined in this scope.",
+                        name.lexeme
+                    ),
+                ));
+            }
             scope.insert(name.lexeme.clone(), false);
         }
+        Ok(())
     }
 
     fn define(&mut self, name: &Token) {
@@ -72,14 +91,25 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_function(&mut self, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> Result<()> {
+    fn resolve_function(
+        &mut self,
+        parameters: &Vec<Token>,
+        body: &Vec<Box<Stmt>>,
+        function_type: FunctionType,
+    ) -> Result<()> {
+        let enclosing_function = self.current_function;
+        self.current_function = function_type;
+
         self.begin_scope();
         for param in parameters {
-            self.declare(param);
+            self.declare(param)?;
             self.define(param);
         }
         let r = self.resolve_statements(body);
+
         self.end_scope();
+        self.current_function = enclosing_function;
+
         r
     }
 }
@@ -125,7 +155,7 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> Result<()> {
-        self.resolve_function(parameters, body)
+        self.resolve_function(parameters, body, FunctionType::Lambda)
     }
 
     fn visit_literal_expr(
@@ -207,9 +237,9 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> Result<()> {
-        self.declare(name);
+        self.declare(name)?;
         self.define(name);
-        self.resolve_function(parameters, body)
+        self.resolve_function(parameters, body, FunctionType::Function)
     }
 
     fn visit_if_stmt(
@@ -234,13 +264,21 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
     fn visit_return_stmt(
         &mut self,
         _stmt: &Stmt,
-        _keyword: &Token,
+        keyword: &Token,
         value: &Option<Box<Expr>>,
     ) -> Result<()> {
-        if let Some(value) = value {
-            self.resolve_expression(value)?;
+        match self.current_function {
+            FunctionType::NoFunction => Err(error::ResolveError::new(
+                Some(keyword.clone()),
+                "Cannot return from top-level code.",
+            )),
+            _ => {
+                if let Some(value) = value {
+                    self.resolve_expression(value)?;
+                }
+                Ok(())
+            }
         }
-        Ok(())
     }
 
     fn visit_var_stmt(
@@ -249,7 +287,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         name: &Token,
         initializer: &Option<Box<Expr>>,
     ) -> Result<()> {
-        self.declare(name);
+        self.declare(name)?;
         if let Some(initializer) = initializer {
             self.resolve_expression(initializer)?;
         }

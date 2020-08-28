@@ -23,7 +23,6 @@ pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     loop_depth: usize,
-    callable_depth: usize,
 }
 
 impl Parser {
@@ -32,7 +31,6 @@ impl Parser {
             tokens: tokens,
             current: 0,
             loop_depth: 0,
-            callable_depth: 0,
         }
     }
 
@@ -221,10 +219,7 @@ impl Parser {
 
     fn _declaration_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.match_token(TokenType::Fun) {
-            self.callable_depth += 1;
-            let ret = self.function_stmt(CallableType::Function);
-            self.callable_depth -= 1;
-            ret
+            self.function_stmt(CallableType::Function)
         } else if self.match_token(TokenType::Var) {
             self.var_declaration_stmt()
         } else {
@@ -379,12 +374,6 @@ impl Parser {
     }
 
     fn return_stmt(&mut self) -> Result<Box<Stmt>> {
-        if self.callable_depth == 0 {
-            return Err(error::ParseError::new(
-                self.peek().clone(),
-                "Illegal use of return statement outside of a function.",
-            ));
-        }
         let keyword = self.previous().clone();
         let mut value = None;
         if !self.check(TokenType::Semicolon) {
