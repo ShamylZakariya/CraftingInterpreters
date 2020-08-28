@@ -955,13 +955,6 @@ for (var i = 0; i < 3; i = i + 1) {
               }
             }
             "#,
-            r#"
-            // use of a return statement outside of a function
-            fun foo() {
-                print "hello";
-            }
-            return;
-            "#,
         ];
 
         for program in programs {

@@ -305,3 +305,64 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         self.resolve_statement(body)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser;
+    use crate::scanner;
+
+    fn verify(program: &str, expected_error:bool) {
+        let mut scanner = scanner::Scanner::new(program);
+        let tokens = scanner.scan_tokens();
+        let mut parser = parser::Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        let mut interpreter = Interpreter::new();
+        let mut resolver = Resolver::new(&mut interpreter);
+        if expected_error {
+            assert!(resolver.resolve(&ast).is_err());
+        } else {
+            assert!(resolver.resolve(&ast).is_ok());
+        }
+    }
+
+    #[test]
+    fn return_outside_function_is_error() {
+        let inputs = vec![
+            (r#"
+            var a = 10;
+            return "hello"; // return at global scope
+            "#, true),
+            (r#"
+            var a = 10;
+            fun foo() {
+                return "hello"; // this is OK
+            }
+            "#, false)
+        ];
+
+        for (program, is_error) in inputs {
+            verify(program, is_error);
+        }
+    }
+
+    #[test]
+    fn redefined_variable_is_error() {
+        let inputs = vec![
+            (r#"
+            var a = 10;
+            var a = 20; // OK to redefine at global scope
+            "#, false),
+            (r#"
+            fun foo() {
+                var a = 10;
+                var a = 11;
+            }
+            "#, true)
+        ];
+
+        for (program, is_error) in inputs {
+            verify(program, is_error);
+        }
+    }
+}
