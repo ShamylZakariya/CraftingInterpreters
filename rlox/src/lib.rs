@@ -77,13 +77,15 @@ impl Lox {
                         Ok(()) => {
                             self.run_statements(&statements);
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            error::report::resolver_error(&e);
                             self.had_error = true;
                         }
                     }
                 }
             }
-            Err(_) => {
+            Err(e) => {
+                error::report::parse_error_at_token(&e.token, &e.message);
                 self.had_error = true;
             }
         }
@@ -109,7 +111,8 @@ impl Lox {
                     did_evaluate_single_expression = true;
                     match self.interpreter.evaluate(&expression) {
                         Ok(r) => println!("{}", r),
-                        Err(_) => {
+                        Err(e) => {
+                            error::report::runtime_error(&e);
                             self.had_runtime_error = true;
                         }
                     }
@@ -121,7 +124,8 @@ impl Lox {
         if !did_evaluate_single_expression {
             match self.interpreter.interpret(statements) {
                 Ok(()) => (),
-                Err(_) => {
+                Err(e) => {
+                    error::report::runtime_error(&e);
                     self.had_runtime_error = true;
                 }
             }

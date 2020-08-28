@@ -71,8 +71,8 @@ impl Environment {
                 Ok(value.clone())
             } else {
                 Err(RuntimeError::with_message(&format!(
-                    "Environment::get_at - Undefined variable \"{}\".",
-                    name
+                    "Environment::get_at - Undefined variable \"{}\" at distance: {}.",
+                    name, distance
                 )))
             }
         } else {

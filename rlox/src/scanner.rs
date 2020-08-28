@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::hash;
+use std::hash::{Hash, Hasher};
 
 use crate::error;
 
@@ -75,10 +75,10 @@ pub enum Literal {
 
 impl Eq for Literal {}
 
-impl hash::Hash for Literal {
+impl Hash for Literal {
     fn hash<H>(&self, state: &mut H)
     where
-        H: hash::Hasher,
+        H: Hasher,
     {
         match self {
             Literal::Number(n) => {
@@ -116,7 +116,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash)]
+#[derive(Clone, Debug, Eq)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -137,6 +137,18 @@ impl Token {
             literal: literal,
             line: line,
         }
+    }
+}
+
+impl Hash for Token {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.token_type.hash(state);
+        self.lexeme.hash(state);
+        self.literal.hash(state);
+        // Ignore line number
     }
 }
 

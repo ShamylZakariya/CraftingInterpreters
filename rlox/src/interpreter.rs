@@ -196,6 +196,7 @@ pub struct Interpreter {
     environment: Environment,
     locals: HashMap<Expr, usize>,
 }
+
 impl Interpreter {
     pub fn new() -> Self {
         let mut globals = Environment::new();
@@ -211,6 +212,7 @@ impl Interpreter {
         }
     }
 
+    #[allow(dead_code)]
     pub fn environment(&self) -> Environment {
         self.environment.clone()
     }
@@ -234,7 +236,6 @@ impl Interpreter {
     fn _process_error(&self, e: InterpretResultStatus) -> RuntimeError {
         match e {
             InterpretResultStatus::Error(e) => {
-                error::report::runtime_error(&e);
                 return e;
             }
             InterpretResultStatus::Break => {
@@ -282,11 +283,16 @@ impl Interpreter {
     }
 
     fn look_up_variable(&self, name: &Token, expr: &Expr) -> InterpretResult<LoxObject> {
+        println!("Interpreter::look_up_variable name: {} expr: {:?}", name, expr);
         if let Some(distance) = self.locals.get(expr) {
+            println!("\tFOUND distance in locals: {}", distance);
             let v = self.environment.get_at(*distance, &name.lexeme)?;
+            println!("\t\tlooked up local var: {}", v);
             Ok(v)
         } else {
+            println!("\tNOT FOUND; assuming global");
             let v = self.globals.get(name)?;
+            println!("\t\tlooked up global var: {}", v);
             Ok(v)
         }
     }
@@ -687,7 +693,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
     ) -> InterpretResult<()> {
         let fun = LoxFunction::new_function(name, parameters, body, self.environment.clone());
         let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
-        self.environment().define(&name.lexeme, &callable);
+        self.environment.define(&name.lexeme, &callable);
         Ok(())
     }
 

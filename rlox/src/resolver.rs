@@ -63,12 +63,14 @@ impl<'a> Resolver<'a> {
     fn resolve_local(&mut self, variable: &Expr, name: &Token) -> Result<()> {
         for i in (0..self.scopes.len()).rev() {
             if self.scopes[i].contains_key(&name.lexeme) {
+                println!("Resolver::resolve_local variable: {:?} distance: {}", variable, self.scopes.len() - 1 - i);
                 self.interpreter
                     .resolve_local(variable, self.scopes.len() - 1 - i);
                 return Ok(());
             }
         }
         // not found, assume var is global.
+        println!("Resolver::resolve_local - Not found in scopes stack, assuming that {} is a global", name.lexeme);
         Ok(())
     }
 
@@ -176,11 +178,11 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
                         Some(name.clone()),
                         "Cannot read local variable in its own initializer.",
                     );
-                    error::report::resolver_error(&e);
                     return Err(e);
                 }
             }
         }
+        println!("Resolver::visit_variable_expr - resolving variable {}", name.lexeme);
         self.resolve_local(&expr, name)
     }
 }

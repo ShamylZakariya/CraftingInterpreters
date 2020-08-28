@@ -99,6 +99,7 @@ pub mod report {
         error(line, "", message);
     }
 
+    #[allow(dead_code)]
     pub fn parse_error_at_token(token: &Token, message: &str) {
         match token.token_type {
             TokenType::Eof => error(token.line, " at end", message),

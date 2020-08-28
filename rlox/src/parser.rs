@@ -94,7 +94,7 @@ impl Parser {
             return Ok(Box::new(Expr::Grouping { expression: expr }));
         }
 
-        Err(self.error(self.peek(), "Expect expression"))
+        Err(error::ParseError::new(self.peek().clone(), "Expect expression"))
     }
 
     fn unary_expr(&mut self) -> Result<Box<Expr>> {
@@ -128,7 +128,7 @@ impl Parser {
             loop {
                 if arguments.len() >= 255 {
                     // just report error, don't bail.
-                    self.error(self.peek(), "Cannot have more than 255 arguments.");
+                    error::report::parse_error_at_token(self.peek(), "Cannot have more than 255 arguments.");
                 }
                 arguments.push(self.expression_expr()?);
                 if !self.match_token(TokenType::Comma) {
@@ -272,7 +272,7 @@ impl Parser {
             )?;
             Ok(Box::new(Stmt::Break))
         } else {
-            Err(self.error(self.peek(), "Break statement only allowed inside loops."))
+            Err(error::ParseError::new(self.peek().clone(), "Break statement only allowed inside loops."))
         }
     }
 
@@ -371,8 +371,8 @@ impl Parser {
 
     fn return_stmt(&mut self) -> Result<Box<Stmt>> {
         if self.callable_depth == 0 {
-            return Err(self.error(
-                self.peek(),
+            return Err(error::ParseError::new(
+                self.peek().clone(),
                 "Illegal use of return statement outside of a function.",
             ));
         }
@@ -439,7 +439,7 @@ impl Parser {
         if !self.check(TokenType::RightParen) {
             loop {
                 if parameters.len() >= 255 {
-                    self.error(
+                    error::report::parse_error_at_token(
                         self.peek(),
                         "Cannot have more than 255 parameters in function declaration.",
                     );
@@ -493,7 +493,7 @@ impl Parser {
                     }));
                 }
                 _ => {
-                    return Err(self.error(&equals, "Invalid assignment target."));
+                    return Err(error::ParseError::new(equals, "Invalid assignment target."));
                 }
             }
         }
@@ -509,7 +509,7 @@ impl Parser {
         if !self.check(TokenType::RightParen) {
             loop {
                 if parameters.len() >= 255 {
-                    self.error(
+                    error::report::parse_error_at_token(
                         self.peek(),
                         "Cannot have more than 255 parameters in function declaration.",
                     );
@@ -604,7 +604,7 @@ impl Parser {
             return Ok(self.advance());
         }
 
-        Err(self.error(self.peek(), on_error_message))
+        Err(error::ParseError::new(self.peek().clone(), on_error_message))
     }
 
     fn is_at_end(&self) -> bool {
@@ -637,12 +637,7 @@ impl Parser {
         &self.tokens[self.current - 1]
     }
 
-    // Error reporting, handling
-
-    fn error(&self, token: &Token, message: &str) -> error::ParseError {
-        error::report::parse_error_at_token(token, message);
-        error::ParseError::new(token.clone(), message)
-    }
+    // Error handling
 
     fn synchronize(&mut self) {
         self.advance();
