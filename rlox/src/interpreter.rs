@@ -879,6 +879,7 @@ mod tests {
                 var b = 3;
                 {
                     var b = 4;
+                    b; // need to "access" b to prevent unused variable error :P
                 }
                 "#,
                 vec![("a", LoxObject::Number(2.0)), ("b", LoxObject::Number(3.0))],

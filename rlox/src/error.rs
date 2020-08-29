@@ -113,7 +113,7 @@ pub mod report {
 
     pub fn resolver_error(e: &ResolveError) {
         if let Some(token) = &e.token {
-            eprintln!("{}\n[line {}]", e.message, token.line);
+            eprintln!("[line {}] {}", token.line, e.message, );
         } else {
             eprintln!("{}", e.message);
         }

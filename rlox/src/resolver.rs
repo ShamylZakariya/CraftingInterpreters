@@ -15,9 +15,52 @@ enum FunctionType {
     Lambda,
 }
 
+#[derive(Copy, Clone, Debug)]
+enum VariableState {
+    Declared,
+    Defined,
+    Accessed,
+}
+
+struct Variable {
+    state: VariableState,
+    token: Token,
+}
+
+impl Variable {
+    fn new(token: &Token) -> Self {
+        Variable {
+            state: VariableState::Declared,
+            token: token.clone(),
+        }
+    }
+
+    fn mark_defined(&mut self) {
+        self.state = VariableState::Defined;
+    }
+
+    fn mark_accessed(&mut self) {
+        self.state = VariableState::Accessed;
+    }
+
+    fn is_defined(&self) -> bool {
+        match self.state {
+            VariableState::Declared => false,
+            _ => true,
+        }
+    }
+
+    fn is_accessed(&self) -> bool {
+        match self.state {
+            VariableState::Accessed => true,
+            _ => false,
+        }
+    }
+}
+
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
-    scopes: Vec<HashMap<String, bool>>,
+    scopes: Vec<HashMap<String, Variable>>,
     current_function: FunctionType,
     loop_depths: Vec<i32>,
 }
@@ -40,8 +83,20 @@ impl<'a> Resolver<'a> {
         self.scopes.push(HashMap::new());
     }
 
-    fn end_scope(&mut self) {
+    fn end_scope(&mut self) -> Result<()> {
+        if let Some(scope) = self.scopes.last() {
+            // look for variable definitions which were never accessed
+            for var in scope.values() {
+                if !var.is_accessed() {
+                    return Err(error::ResolveError::new(
+                        Some(var.token.clone()),
+                        &format!("Variable \"{}\" defined but never accessed", &var.token.lexeme),
+                    ));
+                }
+            }
+        }
         self.scopes.pop();
+        Ok(())
     }
 
     fn resolve_statements(&mut self, statements: &Vec<Box<Stmt>>) -> Result<()> {
@@ -70,20 +125,24 @@ impl<'a> Resolver<'a> {
                     ),
                 ));
             }
-            scope.insert(name.lexeme.clone(), false);
+            // establish variable as defined
+            scope.insert(name.lexeme.clone(), Variable::new(name));
         }
         Ok(())
     }
 
     fn define(&mut self, name: &Token) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(name.lexeme.clone(), true);
+            if let Some(variable) = scope.get_mut(&name.lexeme) {
+                variable.mark_defined();
+            }
         }
     }
 
     fn resolve_local(&mut self, variable: &Expr, name: &Token) -> Result<()> {
         for i in (0..self.scopes.len()).rev() {
-            if self.scopes[i].contains_key(&name.lexeme) {
+            if let Some(var) = self.scopes[i].get_mut(&name.lexeme) {
+                var.mark_accessed();
                 self.interpreter
                     .resolve_local(variable, self.scopes.len() - 1 - i);
                 return Ok(());
@@ -108,13 +167,12 @@ impl<'a> Resolver<'a> {
             self.declare(param)?;
             self.define(param);
         }
-        let r = self.resolve_statements(body);
-
-        self.end_scope();
+        self.resolve_statements(body)?;
+        self.end_scope()?;
         self.loop_depths.pop();
         self.current_function = enclosing_function;
 
-        r
+        Ok(())
     }
 }
 
@@ -204,17 +262,16 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
 
     fn visit_variable_expr(&mut self, expr: &Expr, name: &Token) -> Result<()> {
         if let Some(scope) = self.scopes.last() {
-            if let Some(is_defined) = scope.get(&name.lexeme) {
-                if !is_defined {
-                    let e = error::ResolveError::new(
+            if let Some(variable) = scope.get(&name.lexeme) {
+                if !variable.is_defined() {
+                    return Err(error::ResolveError::new(
                         Some(name.clone()),
                         "Cannot read local variable in its own initializer.",
-                    );
-                    return Err(e);
+                    ));
                 }
             }
         }
-        self.resolve_local(&expr, name)
+        return self.resolve_local(&expr, name);
     }
 }
 
@@ -222,7 +279,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
     fn visit_block_stmt(&mut self, _stmt: &Stmt, statements: &Vec<Box<Stmt>>) -> Result<()> {
         self.begin_scope();
         self.resolve_statements(statements)?;
-        self.end_scope();
+        self.end_scope()?;
         Ok(())
     }
 
@@ -462,4 +519,57 @@ mod tests {
             verify(program, is_error);
         }
     }
+
+    #[test]
+    fn variable_definition_without_access_is_error() {
+        let inputs = vec![
+            (
+                r#"
+                // fine, global scope
+                var a = 10;
+                var b = 20;
+                "#,
+                false,
+            ),
+            (
+                r#"
+                fun foo() {
+                    var c = 3; // not ok, we're not in global scope
+                }
+                "#,
+                true,
+            ),
+            (
+                r#"
+                fun foo() {
+                    var c = 3;
+                    return c; // fine, we access it here
+                }
+                "#,
+                false,
+            ),
+            (
+                r#"
+                {
+                    var c = 3; // not ok, we're not in global scope
+                }
+                "#,
+                true,
+            ),
+            (
+                r#"
+                {
+                    var c = 3;
+                    print c; // fine, we access it here
+                }
+                "#,
+                false,
+            ),
+        ];
+
+        for (program, is_error) in inputs {
+            verify(program, is_error);
+        }
+    }
+
 }
