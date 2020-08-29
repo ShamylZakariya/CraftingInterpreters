@@ -1,11 +1,13 @@
 use std::collections::HashMap;
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::environment::Environment;
 use crate::error;
 use crate::expr::*;
+use crate::function::LoxFunction;
 use crate::natives;
-use crate::scanner::{Literal, Token, TokenType};
+use crate::object::LoxObject;
+use crate::scanner::{Token, TokenType};
 use crate::stmt::*;
 
 //-----------------------------------------------------------------------------
@@ -31,163 +33,6 @@ impl std::convert::From<error::RuntimeError> for InterpretResultStatus {
 }
 
 pub type InterpretResult<T> = std::result::Result<T, InterpretResultStatus>;
-
-//-----------------------------------------------------------------------------
-pub trait LoxCallable {
-    fn arity(&self) -> usize;
-    fn call(
-        &self,
-        interpreter: &mut Interpreter,
-        arguments: &Vec<LoxObject>,
-    ) -> InterpretResult<Option<LoxObject>>;
-}
-
-impl fmt::Debug for dyn LoxCallable {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<callable arity {}>", self.arity())
-    }
-}
-
-impl fmt::Display for dyn LoxCallable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<callable arity {}>", self.arity())
-    }
-}
-
-impl PartialEq<dyn LoxCallable> for dyn LoxCallable {
-    fn eq(&self, other: &Self) -> bool {
-        &self == &other
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum LoxObject {
-    Boolean(bool),
-    Callable(Rc<RefCell<dyn LoxCallable>>),
-    Nil,
-    Number(f64),
-    Str(String),
-    Undefined,
-}
-
-impl LoxObject {
-    fn from_literal(literal: &crate::scanner::Literal) -> Self {
-        match literal {
-            Literal::Number(n) => LoxObject::Number(*n),
-            Literal::Str(s) => LoxObject::Str(s.clone()),
-            Literal::False => LoxObject::Boolean(false),
-            Literal::True => LoxObject::Boolean(true),
-            Literal::Nil => LoxObject::Nil,
-        }
-    }
-    fn is_truthy(&self) -> bool {
-        match self {
-            LoxObject::Nil => false,     // nil is falsey
-            LoxObject::Boolean(b) => *b, // booleans are what they are
-            _ => true,                   // everything else is *something*, which is truthy
-        }
-    }
-}
-
-impl PartialEq<LoxObject> for LoxObject {
-    fn eq(&self, _other: &Self) -> bool {
-        use LoxObject::*;
-        match (self, _other) {
-            (Boolean(b1), Boolean(b2)) => b1 == b2,
-            (Callable(c1), Callable(c2)) => c1 == c2,
-            (Nil, Nil) => true,
-            (Number(n1), Number(n2)) => n1 == n2,
-            (Str(s1), Str(s2)) => s1 == s2,
-            (Undefined, Undefined) => true,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for LoxObject {}
-
-impl fmt::Display for LoxObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            LoxObject::Boolean(v) => {
-                if *v {
-                    write!(f, "true")
-                } else {
-                    write!(f, "false")
-                }
-            }
-            LoxObject::Callable(c) => write!(f, "{}", c.borrow()),
-            LoxObject::Nil => write!(f, "nil"),
-            LoxObject::Number(n) => write!(f, "{}", n),
-            LoxObject::Str(s) => write!(f, "{}", s),
-            LoxObject::Undefined => write!(f, "<undefined>"),
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-struct LoxFunction {
-    _name: Option<Token>,
-    parameters: Vec<Token>,
-    body: Vec<Box<Stmt>>,
-    closure: Environment,
-}
-
-impl LoxFunction {
-    fn new_function(
-        name: &Token,
-        parameters: &Vec<Token>,
-        body: &Vec<Box<Stmt>>,
-        closure: Environment,
-    ) -> Self {
-        LoxFunction {
-            _name: Some(name.clone()),
-            parameters: parameters.clone(),
-            body: body.clone(),
-            closure: closure,
-        }
-    }
-
-    fn new_lambda(parameters: &Vec<Token>, body: &Vec<Box<Stmt>>, closure: Environment) -> Self {
-        LoxFunction {
-            _name: None,
-            parameters: parameters.clone(),
-            body: body.clone(),
-            closure: closure,
-        }
-    }
-}
-
-impl LoxCallable for LoxFunction {
-    fn arity(&self) -> usize {
-        return self.parameters.len();
-    }
-
-    fn call(
-        &self,
-        interpreter: &mut Interpreter,
-        arguments: &Vec<LoxObject>,
-    ) -> InterpretResult<Option<LoxObject>> {
-        let mut env = Environment::as_child_of(self.closure.clone());
-        for i in 0..self.parameters.len() {
-            env.define(&self.parameters[i].lexeme, &arguments[i]);
-        }
-
-        let ret = interpreter.execute_block(&self.body, env);
-        match ret {
-            // if function doesn't explicitly call return, we return None for it
-            Ok(()) => Ok(None),
-            Err(e) => match e {
-                InterpretResultStatus::Return(v) => match v {
-                    Some(v) => Ok(Some(v)),
-                    None => Ok(None),
-                },
-                _ => Err(e),
-            },
-        }
-    }
-}
 
 //-----------------------------------------------------------------------------
 
@@ -257,7 +102,7 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(
+    pub fn execute_block(
         &mut self,
         statements: &Vec<Box<Stmt>>,
         env: Environment,

@@ -40,7 +40,7 @@ impl Variable {
     }
 
     fn mark_accessed(&mut self) {
-        self.state = VariableState::Accessed;
+        self.state = VariableState::Accessed; 
     }
 
     fn is_defined(&self) -> bool {

@@ -2,11 +2,14 @@ use std::io::Write;
 use std::{fs, io};
 
 mod ast_printer;
+mod callable;
 mod environment;
 mod error;
 mod expr;
+mod function;
 mod interpreter;
 mod natives;
+mod object;
 mod parser;
 mod resolver;
 mod scanner;
