@@ -1,11 +1,11 @@
 use std::io::Write;
 use std::{fs, io};
 
+mod ast;
 mod ast_printer;
 mod callable;
 mod environment;
 mod error;
-mod expr;
 mod function;
 mod interpreter;
 mod natives;
@@ -13,14 +13,13 @@ mod object;
 mod parser;
 mod resolver;
 mod scanner;
-mod stmt;
 
 use crate::ast_printer::AstPrinter;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::resolver::Resolver;
 use crate::scanner::Scanner;
-use crate::stmt::Stmt;
+use crate::ast::Stmt;
 
 pub struct Lox {
     had_error: bool,

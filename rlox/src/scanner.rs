@@ -64,6 +64,8 @@ impl fmt::Display for TokenType {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Literal {
     Number(f64),
@@ -168,15 +170,9 @@ impl fmt::Display for Token {
     }
 }
 
-pub struct Scanner<'a> {
-    _source: &'a str,
-    current_grapheme: &'a str,
-    remainder: &'a str,
-    line: i32,
-    current_id: i32,
-    keywords: HashMap<String, TokenType>,
-}
+///////////////////////////////////////////////////////////////////////////////
 
+// Returns tuple of first complete char in string, and remainder of string.
 fn car_cdr(s: &str) -> (&str, &str) {
     match s.chars().next() {
         Some(c) => s.split_at(c.len_utf8()),
@@ -203,9 +199,20 @@ fn is_alpha(grapheme: &str) -> bool {
     }
 }
 
-// Returns true if the grapheme is_alpha and is_digit.
+// Returns true if the grapheme is_alpha or is_digit.
 fn is_alpha_numeric(grapheme: &str) -> bool {
     is_alpha(grapheme) || is_digit(grapheme)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+pub struct Scanner<'a> {
+    _source: &'a str,
+    current_grapheme: &'a str,
+    remainder: &'a str,
+    line: i32,
+    current_id: i32,
+    keywords: HashMap<String, TokenType>,
 }
 
 impl Scanner<'_> {

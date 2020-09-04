@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
 
+use crate::ast::*;
 use crate::environment::Environment;
 use crate::error;
-use crate::expr::*;
 use crate::function::LoxFunction;
 use crate::natives;
 use crate::object::LoxObject;
 use crate::scanner::{Token, TokenType};
-use crate::stmt::*;
 
 //-----------------------------------------------------------------------------
 

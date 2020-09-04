@@ -3,7 +3,7 @@ use crate::environment::Environment;
 use crate::interpreter::{Interpreter, InterpretResult, InterpretResultStatus};
 use crate::object::LoxObject;
 use crate::scanner::Token;
-use crate::stmt::Stmt;
+use crate::ast::Stmt;
 
 pub struct LoxFunction {
     _name: Option<Token>,

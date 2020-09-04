@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
+use crate::ast::*;
 use crate::error;
-use crate::expr::*;
 use crate::interpreter::Interpreter;
 use crate::scanner::Token;
-use crate::stmt::*;
 
 pub type Result<T> = std::result::Result<T, error::ResolveError>;
 
@@ -40,7 +39,7 @@ impl Variable {
     }
 
     fn mark_accessed(&mut self) {
-        self.state = VariableState::Accessed; 
+        self.state = VariableState::Accessed;
     }
 
     fn is_defined(&self) -> bool {
