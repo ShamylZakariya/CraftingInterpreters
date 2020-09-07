@@ -2,14 +2,15 @@ use std::fmt;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::callable::LoxCallable;
-use crate::class::LoxClass;
+use crate::class::{LoxClass, LoxInstance};
 use crate::scanner::Literal;
 
 #[derive(Debug, Clone)]
 pub enum LoxObject {
     Boolean(bool),
     Callable(Rc<RefCell<dyn LoxCallable>>),
-    Class(Rc<RefCell<LoxClass>>),
+    Class(LoxClass),
+    Instance(LoxInstance),
     Nil,
     Number(f64),
     Str(String),
@@ -43,6 +44,7 @@ impl PartialEq<LoxObject> for LoxObject {
             (Boolean(b1), Boolean(b2)) => b1 == b2,
             (Callable(c1), Callable(c2)) => c1 == c2,
             (Class(c1), Class(c2)) => c1 == c2,
+            (Instance(i1), Instance(i2)) => i1 == i2,
             (Nil, Nil) => true,
             (Number(n1), Number(n2)) => n1 == n2,
             (Str(s1), Str(s2)) => s1 == s2,
@@ -65,7 +67,8 @@ impl fmt::Display for LoxObject {
                 }
             }
             LoxObject::Callable(c) => write!(f, "{}", c.borrow()),
-            LoxObject::Class(c) => write!(f, "{}", c.borrow()),
+            LoxObject::Class(c) => write!(f, "{}", c),
+            LoxObject::Instance(i) => write!(f, "{}", i),
             LoxObject::Nil => write!(f, "nil"),
             LoxObject::Number(n) => write!(f, "{}", n),
             LoxObject::Str(s) => write!(f, "{}", s),

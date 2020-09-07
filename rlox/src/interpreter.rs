@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::ast::*;
+use crate::callable::LoxCallable;
 use crate::class::LoxClass;
 use crate::environment::Environment;
 use crate::error;
@@ -373,29 +374,40 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
             args.push(self._evaluate(arg)?);
         }
 
-        if let LoxObject::Callable(callable) = callee {
-            if args.len() != callable.borrow().arity() {
-                return Err(InterpretResultStatus::Error(RuntimeError::new(
-                    paren,
-                    format!(
-                        "Expected {} arguments but got {}",
-                        callable.borrow().arity(),
-                        args.len()
-                    )
-                    .as_str(),
-                )));
+        match callee {
+            LoxObject::Callable(callable) => {
+                if args.len() != callable.borrow().arity() {
+                    return Err(InterpretResultStatus::Error(RuntimeError::new(
+                        paren,
+                        format!(
+                            "Expected {} arguments but got {}",
+                            callable.borrow().arity(),
+                            args.len()
+                        )
+                        .as_str(),
+                    )));
+                }
+
+                if let Some(v) = callable.borrow().call(self, &args)? {
+                    Ok(v)
+                } else {
+                    Ok(LoxObject::Nil)
+                }
             }
 
-            if let Some(v) = callable.borrow().call(self, &args)? {
-                return Ok(v);
-            } else {
-                return Ok(LoxObject::Nil);
+            LoxObject::Class(class) => {
+                if let Some(v) = class.call(self, &args)? {
+                    Ok(v)
+                } else {
+                    Ok(LoxObject::Nil)
+                }
             }
+
+            _ => Err(InterpretResultStatus::Error(RuntimeError::new(
+                paren,
+                "Callee is not a callable expression (function, method, or class ctor).",
+            ))),
         }
-        return Err(InterpretResultStatus::Error(RuntimeError::new(
-            paren,
-            "Callee is not a callable expression (function or method or class ctor).",
-        )));
     }
 
     fn visit_grouping_expr(
@@ -521,8 +533,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
     ) -> InterpretResult<()> {
         self.environment.define(&name.lexeme, &LoxObject::Nil);
 
-        let class = LoxClass::new(&name.lexeme);
-        let class_obj = LoxObject::Class(Rc::new(RefCell::new(class)));
+        let class_obj = LoxObject::Class(LoxClass::new(&name.lexeme));
         self.environment.assign(name, &class_obj)?;
 
         Ok(())

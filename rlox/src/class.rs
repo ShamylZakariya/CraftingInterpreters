@@ -1,30 +1,96 @@
 use std::fmt;
+use std::{cell::RefCell, rc::Rc};
 
-pub struct LoxClass {
+use crate::callable::LoxCallable;
+use crate::environment::Environment;
+use crate::interpreter::{InterpretResult, Interpreter};
+use crate::object::LoxObject;
+
+pub struct ClassData {
     name: String,
 }
 
+pub struct LoxClass(Rc<RefCell<ClassData>>);
+
 impl LoxClass {
     pub fn new(name: &str) -> Self {
-        LoxClass {
+        LoxClass(Rc::new(RefCell::new(ClassData {
             name: String::from(name),
-        }
+        })))
+    }
+}
+
+impl Clone for LoxClass {
+    fn clone(&self) -> Self {
+        LoxClass(self.0.clone())
     }
 }
 
 impl fmt::Debug for LoxClass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<class \"{}\">", self.name)
+        write!(f, "<class \"{}\">", self.0.borrow().name)
     }
 }
 
 impl fmt::Display for LoxClass {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.0.borrow().name)
     }
 }
 
 impl PartialEq<LoxClass> for LoxClass {
+    fn eq(&self, other: &Self) -> bool {
+        &self == &other
+    }
+}
+
+impl LoxCallable for LoxClass {
+    fn arity(&self) -> usize {
+        return 0;
+    }
+
+    fn call(
+        &self,
+        _interpreter: &mut Interpreter,
+        _arguments: &Vec<LoxObject>,
+    ) -> InterpretResult<Option<LoxObject>> {
+        Ok(Some(LoxObject::Instance(LoxInstance::new(self.0.clone()))))
+    }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+pub struct LoxInstance {
+    class_data: Rc<RefCell<ClassData>>,
+}
+
+impl LoxInstance {
+    pub fn new(class_data: Rc<RefCell<ClassData>>) -> Self {
+        LoxInstance { class_data }
+    }
+}
+
+impl Clone for LoxInstance {
+    fn clone(&self) -> Self {
+        LoxInstance {
+            class_data: self.class_data.clone(),
+        }
+    }
+}
+
+impl fmt::Debug for LoxInstance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<instance of \"{}\">", self.class_data.borrow().name)
+    }
+}
+
+impl fmt::Display for LoxInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} instance", self.class_data.borrow().name)
+    }
+}
+
+impl PartialEq<LoxInstance> for LoxInstance {
     fn eq(&self, other: &Self) -> bool {
         &self == &other
     }
