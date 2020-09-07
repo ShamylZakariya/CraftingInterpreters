@@ -89,7 +89,10 @@ impl<'a> Resolver<'a> {
                 if !var.is_accessed() {
                     return Err(error::ResolveError::new(
                         Some(var.token.clone()),
-                        &format!("Variable \"{}\" defined but never accessed", &var.token.lexeme),
+                        &format!(
+                            "Variable \"{}\" defined but never accessed",
+                            &var.token.lexeme
+                        ),
                     ));
                 }
             }
@@ -291,6 +294,17 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
                 ));
             }
         }
+        Ok(())
+    }
+
+    fn visit_class_stmt(
+        &mut self,
+        _stmt: &Stmt,
+        name: &Token,
+        _methods: &Vec<Box<Stmt>>,
+    ) -> Result<()> {
+        self.declare(name)?;
+        self.define(name);
         Ok(())
     }
 
@@ -570,5 +584,4 @@ mod tests {
             verify(program, is_error);
         }
     }
-
 }

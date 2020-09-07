@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::ast::*;
+use crate::class::LoxClass;
 use crate::environment::Environment;
 use crate::error;
 use crate::function::LoxFunction;
@@ -510,6 +511,21 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
 
     fn visit_break_stmt(&mut self, _stmt: &Stmt, _keyword: &Token) -> InterpretResult<()> {
         Err(InterpretResultStatus::Break)
+    }
+
+    fn visit_class_stmt(
+        &mut self,
+        _stmt: &Stmt,
+        name: &Token,
+        _methods: &Vec<Box<Stmt>>,
+    ) -> InterpretResult<()> {
+        self.environment.define(&name.lexeme, &LoxObject::Nil);
+
+        let class = LoxClass::new(&name.lexeme);
+        let class_obj = LoxObject::Class(Rc::new(RefCell::new(class)));
+        self.environment.assign(name, &class_obj)?;
+
+        Ok(())
     }
 
     fn visit_expression_stmt(

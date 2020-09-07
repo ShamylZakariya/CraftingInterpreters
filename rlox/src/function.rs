@@ -1,12 +1,14 @@
+use std::fmt;
+
+use crate::ast::Stmt;
 use crate::callable::LoxCallable;
 use crate::environment::Environment;
-use crate::interpreter::{Interpreter, InterpretResult, InterpretResultStatus};
+use crate::interpreter::{InterpretResult, InterpretResultStatus, Interpreter};
 use crate::object::LoxObject;
 use crate::scanner::Token;
-use crate::ast::Stmt;
 
 pub struct LoxFunction {
-    _name: Option<Token>,
+    name: Option<Token>,
     parameters: Vec<Token>,
     body: Vec<Box<Stmt>>,
     closure: Environment,
@@ -20,19 +22,33 @@ impl LoxFunction {
         closure: Environment,
     ) -> Self {
         LoxFunction {
-            _name: Some(name.clone()),
+            name: Some(name.clone()),
             parameters: parameters.clone(),
             body: body.clone(),
             closure: closure,
         }
     }
 
-    pub fn new_lambda(parameters: &Vec<Token>, body: &Vec<Box<Stmt>>, closure: Environment) -> Self {
+    pub fn new_lambda(
+        parameters: &Vec<Token>,
+        body: &Vec<Box<Stmt>>,
+        closure: Environment,
+    ) -> Self {
         LoxFunction {
-            _name: None,
+            name: None,
             parameters: parameters.clone(),
             body: body.clone(),
             closure: closure,
+        }
+    }
+}
+
+impl fmt::Display for LoxFunction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(name) = &self.name {
+            write!(f, "{}", name)
+        } else {
+            write!(f, "lambda")
         }
     }
 }

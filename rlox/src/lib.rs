@@ -4,6 +4,7 @@ use std::{fs, io};
 mod ast;
 mod ast_printer;
 mod callable;
+mod class;
 mod environment;
 mod error;
 mod function;
@@ -14,12 +15,12 @@ mod parser;
 mod resolver;
 mod scanner;
 
+use crate::ast::Stmt;
 use crate::ast_printer::AstPrinter;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::resolver::Resolver;
 use crate::scanner::Scanner;
-use crate::ast::Stmt;
 
 pub struct Lox {
     had_error: bool,

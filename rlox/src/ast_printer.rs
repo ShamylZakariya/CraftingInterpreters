@@ -132,6 +132,10 @@ impl StmtVisitor<String> for AstPrinter {
         self.parenthesize_stmts("break", &vec![])
     }
 
+    fn visit_class_stmt(&mut self, _stmt: &Stmt, name: &Token, methods: &Vec<Box<Stmt>>) -> String {
+        self.parenthesize_stmts(&name.lexeme, methods)
+    }
+
     fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> String {
         self.parenthesize_exprs("expression", &vec![expression])
     }

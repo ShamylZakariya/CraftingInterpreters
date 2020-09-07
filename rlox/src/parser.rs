@@ -8,12 +8,14 @@ pub type Result<T> = std::result::Result<T, error::ParseError>;
 
 enum CallableType {
     Function,
+    Method,
 }
 
 impl fmt::Display for CallableType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CallableType::Function => write!(f, "function"),
+            CallableType::Method => write!(f, "method"),
         }
     }
 }
@@ -214,24 +216,45 @@ impl Parser {
 
     // Statements
 
-    fn _declaration_stmt(&mut self) -> Result<Box<Stmt>> {
-        if self.match_token(TokenType::Fun) {
-            self.function_stmt(CallableType::Function)
-        } else if self.match_token(TokenType::Var) {
-            self.var_declaration_stmt()
-        } else {
-            self.statement_stmt()
-        }
-    }
-
     fn declaration_stmt(&mut self) -> Result<Box<Stmt>> {
-        match self._declaration_stmt() {
+        fn _declaration_stmt(parser: &mut Parser) -> Result<Box<Stmt>> {
+            if parser.match_token(TokenType::Class) {
+                parser.class_declaration_stmt()
+            } else if parser.match_token(TokenType::Fun) {
+                parser.function_stmt(CallableType::Function)
+            } else if parser.match_token(TokenType::Var) {
+                parser.var_declaration_stmt()
+            } else {
+                parser.statement_stmt()
+            }
+        }
+
+        match _declaration_stmt(self) {
             Ok(r) => Ok(r),
             Err(e) => {
                 self.synchronize();
                 Err(e)
             }
         }
+    }
+
+    fn class_declaration_stmt(&mut self) -> Result<Box<Stmt>> {
+        let name = self
+            .consume(TokenType::Identifier, "Expect class name")?
+            .clone();
+        self.consume(TokenType::LeftBrace, "Expect \"{\" before class body")?;
+
+        let mut methods = vec![];
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            methods.push(self.function_stmt(CallableType::Method)?);
+        }
+
+        self.consume(TokenType::RightBrace, "Expect \"}\" after class body.")?;
+
+        Ok(Box::new(Stmt::Class {
+            name: name,
+            methods: methods,
+        }))
     }
 
     fn statement_stmt(&mut self) -> Result<Box<Stmt>> {
@@ -674,6 +697,10 @@ mod tests {
                 }
             }
             Stmt::Break { keyword: _ } => {}
+            Stmt::Class { name, methods } => {
+                zero_token_line_and_id(name);
+                zero_stmts_line_and_id(methods);
+            }
             Stmt::Expression { expression } => {
                 zero_expr_line_and_id(expression);
             }

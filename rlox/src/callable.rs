@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::interpreter::{Interpreter, InterpretResult};
+use crate::interpreter::{InterpretResult, Interpreter};
 use crate::object::LoxObject;
 
 pub trait LoxCallable {

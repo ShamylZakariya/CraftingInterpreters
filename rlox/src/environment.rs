@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::error::RuntimeError;
-use crate::object::LoxObject;
 use crate::interpreter::Result;
+use crate::object::LoxObject;
 use crate::scanner::Token;
 
 #[derive(Clone)]
