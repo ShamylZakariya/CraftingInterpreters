@@ -77,6 +77,10 @@ impl ExprVisitor<String> for AstPrinter {
         self.parenthesize_exprs("call", &exprs)
     }
 
+    fn visit_get_expr(&mut self, _expr: &Expr, object: &Box<Expr>, name: &Token) -> String {
+        self.parenthesize_exprs(&name.lexeme, &vec![object])
+    }
+
     fn visit_grouping_expr(&mut self, _expr: &Expr, content: &Box<Expr>) -> String {
         self.parenthesize_exprs("group", &vec![content])
     }
@@ -102,6 +106,16 @@ impl ExprVisitor<String> for AstPrinter {
         right: &Box<Expr>,
     ) -> String {
         self.parenthesize_exprs(&operator.lexeme, &vec![left, right])
+    }
+
+    fn visit_set_expr(
+        &mut self,
+        _expr: &Expr,
+        object: &Box<Expr>,
+        name: &Token,
+        value: &Box<Expr>,
+    ) -> String {
+        self.parenthesize_exprs(&format!("set \"{}\"", &name.lexeme), &vec![object, value])
     }
 
     fn visit_ternary_expr(

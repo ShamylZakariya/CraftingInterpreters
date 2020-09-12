@@ -209,6 +209,10 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
         Ok(())
     }
 
+    fn visit_get_expr(&mut self, _expr: &Expr, object: &Box<Expr>, _name: &Token) -> Result<()> {
+        self.resolve_expression(object)
+    }
+
     fn visit_grouping_expr(&mut self, _expr: &Expr, content: &Box<Expr>) -> Result<()> {
         self.resolve_expression(content)
     }
@@ -239,6 +243,17 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
     ) -> Result<()> {
         self.resolve_expression(left)?;
         self.resolve_expression(right)
+    }
+
+    fn visit_set_expr(
+        &mut self,
+        _expr: &Expr,
+        object: &Box<Expr>,
+        _name: &Token,
+        value: &Box<Expr>,
+    ) -> Result<()> {
+        self.resolve_expression(value)?;
+        self.resolve_expression(object)
     }
 
     fn visit_ternary_expr(

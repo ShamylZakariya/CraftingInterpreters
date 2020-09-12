@@ -1,10 +1,12 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::callable::LoxCallable;
-use crate::environment::Environment;
-use crate::interpreter::{InterpretResult, Interpreter};
+use crate::error::RuntimeError;
+use crate::interpreter::{InterpretResult, Interpreter, Result};
 use crate::object::LoxObject;
+use crate::scanner::Token;
 
 pub struct ClassData {
     name: String,
@@ -62,11 +64,32 @@ impl LoxCallable for LoxClass {
 
 pub struct LoxInstance {
     class_data: Rc<RefCell<ClassData>>,
+    fields: Rc<RefCell<HashMap<String, LoxObject>>>,
 }
 
 impl LoxInstance {
     pub fn new(class_data: Rc<RefCell<ClassData>>) -> Self {
-        LoxInstance { class_data }
+        LoxInstance {
+            class_data,
+            fields: Rc::new(RefCell::new(HashMap::new())),
+        }
+    }
+
+    pub fn get(&self, name: &Token) -> Result<LoxObject> {
+        if let Some(obj) = self.fields.borrow().get(&name.lexeme) {
+            Ok(obj.clone())
+        } else {
+            Err(RuntimeError::new(
+                name,
+                &format!("Undefined variable \"{}\".", name.lexeme),
+            ))
+        }
+    }
+
+    pub fn set(&self, name: &Token, value: &LoxObject) {
+        self.fields
+            .borrow_mut()
+            .insert(name.lexeme.to_owned(), value.clone());
     }
 }
 
@@ -74,6 +97,7 @@ impl Clone for LoxInstance {
     fn clone(&self) -> Self {
         LoxInstance {
             class_data: self.class_data.clone(),
+            fields: self.fields.clone(),
         }
     }
 }

@@ -16,6 +16,10 @@ pub enum Expr {
         paren: Token, // this is to record line number
         arguments: Vec<Box<Expr>>,
     },
+    Get {
+        object: Box<Expr>,
+        name: Token,
+    },
     Grouping {
         expression: Box<Expr>,
     },
@@ -30,6 +34,11 @@ pub enum Expr {
         left: Box<Expr>,
         operator: Token,
         right: Box<Expr>,
+    },
+    Set {
+        object: Box<Expr>,
+        name: Token,
+        value: Box<Expr>,
     },
     Ternary {
         condition: Box<Expr>,
@@ -62,6 +71,7 @@ impl Expr {
                 paren,
                 arguments,
             } => visitor.visit_call_expr(&self, &callee, &paren, &arguments),
+            Expr::Get { object, name } => visitor.visit_get_expr(&self, object, name),
             Expr::Grouping { expression } => visitor.visit_grouping_expr(&self, &expression),
             Expr::Lambda { parameters, body } => {
                 visitor.visit_lambda_expr(&self, &parameters, &body)
@@ -72,6 +82,11 @@ impl Expr {
                 operator,
                 right,
             } => visitor.visit_logical_expr(&self, &left, &operator, &right),
+            Expr::Set {
+                object,
+                name,
+                value,
+            } => visitor.visit_set_expr(&self, object, name, value),
             Expr::Ternary {
                 condition,
                 then_value,
@@ -101,6 +116,7 @@ pub trait ExprVisitor<R> {
         paren: &Token,
         arguments: &Vec<Box<Expr>>,
     ) -> R;
+    fn visit_get_expr(&mut self, expr: &Expr, object: &Box<Expr>, name: &Token) -> R;
     fn visit_grouping_expr(&mut self, expr: &Expr, content: &Box<Expr>) -> R;
     fn visit_lambda_expr(
         &mut self,
@@ -115,6 +131,13 @@ pub trait ExprVisitor<R> {
         left: &Box<Expr>,
         operator: &Token,
         right: &Box<Expr>,
+    ) -> R;
+    fn visit_set_expr(
+        &mut self,
+        expr: &Expr,
+        object: &Box<Expr>,
+        name: &Token,
+        value: &Box<Expr>,
     ) -> R;
     fn visit_ternary_expr(
         &mut self,

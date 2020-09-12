@@ -410,6 +410,26 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         }
     }
 
+    fn visit_get_expr(
+        &mut self,
+        _expr: &Expr,
+        object: &Box<Expr>,
+        name: &Token,
+    ) -> InterpretResult<LoxObject> {
+        let object = self.evaluate(object)?;
+        if let LoxObject::Instance(lox_instance) = object {
+            return match lox_instance.get(name) {
+                Ok(obj) => Ok(obj),
+                Err(e) => Err(InterpretResultStatus::Error(e)),
+            };
+        }
+
+        Err(InterpretResultStatus::Error(RuntimeError::new(
+            name,
+            "Only instances have properties.",
+        )))
+    }
+
     fn visit_grouping_expr(
         &mut self,
         _expr: &Expr,
@@ -467,6 +487,27 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         }
         // expression result is right side because logical expr wasn't short circuited
         self._evaluate(right)
+    }
+
+    fn visit_set_expr(
+        &mut self,
+        _expr: &Expr,
+        object: &Box<Expr>,
+        name: &Token,
+        value: &Box<Expr>,
+    ) -> InterpretResult<LoxObject> {
+        let object = self.evaluate(object)?;
+        match object {
+            LoxObject::Instance(instance) => {
+                let value = self.evaluate(value)?;
+                instance.set(name, &value);
+                Ok(value)
+            }
+            _ => Err(InterpretResultStatus::Error(RuntimeError::new(
+                name,
+                "Only object instances have fields.",
+            ))),
+        }
     }
 
     fn visit_ternary_expr(

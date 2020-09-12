@@ -115,6 +115,13 @@ impl Parser {
             if self.match_token(TokenType::LeftParen) {
                 // parse argument list
                 expr = self.finish_call_expr(expr)?;
+            } else if self.match_token(TokenType::Dot) {
+                let name =
+                    self.consume(TokenType::Identifier, "Expect property name after \".\"")?;
+                expr = Box::new(Expr::Get {
+                    object: expr,
+                    name: name.clone(),
+                });
             } else {
                 break;
             }
@@ -500,6 +507,14 @@ impl Parser {
                         value: value,
                     }));
                 }
+                Expr::Get { object, name } => {
+                    // turn into a Set expression.
+                    return Ok(Box::new(Expr::Set {
+                        object,
+                        name,
+                        value,
+                    }));
+                }
                 _ => {
                     return Err(error::ParseError::new(equals, "Invalid assignment target."));
                 }
@@ -777,6 +792,10 @@ mod tests {
                     zero_expr_line_and_id(arg);
                 }
             }
+            Expr::Get { object, name } => {
+                zero_expr_line_and_id(object);
+                zero_token_line_and_id(name);
+            }
             Expr::Grouping { expression } => {
                 zero_expr_line_and_id(expression);
             }
@@ -799,6 +818,15 @@ mod tests {
                 zero_expr_line_and_id(left);
                 zero_token_line_and_id(operator);
                 zero_expr_line_and_id(right);
+            }
+            Expr::Set {
+                object,
+                name,
+                value,
+            } => {
+                zero_expr_line_and_id(object);
+                zero_token_line_and_id(name);
+                zero_expr_line_and_id(value);
             }
             Expr::Ternary {
                 condition,
