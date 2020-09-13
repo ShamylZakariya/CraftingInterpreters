@@ -510,6 +510,10 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         }
     }
 
+    fn visit_this_expr(&mut self, expr: &Expr, keyword: &Token) -> InterpretResult<LoxObject> {
+        self.look_up_variable(keyword, expr)
+    }
+
     fn visit_ternary_expr(
         &mut self,
         _expr: &Expr,

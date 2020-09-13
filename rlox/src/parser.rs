@@ -79,6 +79,12 @@ impl Parser {
             }
         }
 
+        if self.match_token(TokenType::This) {
+            return Ok(Box::new(Expr::This {
+                keyword: self.previous().clone(),
+            }));
+        }
+
         if self.match_token(TokenType::Identifier) {
             return Ok(Box::new(Expr::Variable {
                 name: self.previous().clone(),
@@ -837,6 +843,7 @@ mod tests {
                 zero_expr_line_and_id(then_value);
                 zero_expr_line_and_id(else_value);
             }
+            Expr::This { keyword } => zero_token_line_and_id(keyword),
             Expr::Unary { operator, right } => {
                 zero_token_line_and_id(operator);
                 zero_expr_line_and_id(right);

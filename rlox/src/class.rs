@@ -92,7 +92,9 @@ impl LoxInstance {
         if let Some(obj) = self.fields.borrow().get(&name.lexeme) {
             Ok(obj.clone())
         } else if let Some(method) = self.class_data.borrow().find_method(&name.lexeme) {
-            Ok(LoxObject::Callable(method))
+            Ok(LoxObject::Callable(Rc::new(RefCell::new(
+                method.borrow().bind(self),
+            ))))
         } else {
             Err(RuntimeError::new(
                 name,

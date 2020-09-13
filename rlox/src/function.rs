@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::ast::Stmt;
 use crate::callable::LoxCallable;
+use crate::class::LoxInstance;
 use crate::environment::Environment;
 use crate::interpreter::{InterpretResult, InterpretResultStatus, Interpreter};
 use crate::object::LoxObject;
@@ -39,6 +40,16 @@ impl LoxFunction {
             parameters: parameters.clone(),
             body: body.clone(),
             closure: closure,
+        }
+    }
+
+    pub fn bind(&self, instance: &LoxInstance) -> LoxFunction {
+        let mut environment = Environment::as_child_of(self.closure.clone());
+        environment.define("this", &LoxObject::Instance(instance.clone()));
+        if let Some(name) = &self.name {
+            LoxFunction::new_function(&name, &self.parameters, &self.body, environment)
+        } else {
+            panic!("Attempted to call bind() on a lambda.");
         }
     }
 }

@@ -45,6 +45,9 @@ pub enum Expr {
         then_value: Box<Expr>,
         else_value: Box<Expr>,
     },
+    This {
+        keyword: Token,
+    },
     Unary {
         operator: Token,
         right: Box<Expr>,
@@ -87,6 +90,7 @@ impl Expr {
                 name,
                 value,
             } => visitor.visit_set_expr(&self, object, name, value),
+            Expr::This { keyword } => visitor.visit_this_expr(&self, &keyword),
             Expr::Ternary {
                 condition,
                 then_value,
@@ -139,6 +143,7 @@ pub trait ExprVisitor<R> {
         name: &Token,
         value: &Box<Expr>,
     ) -> R;
+    fn visit_this_expr(&mut self, expr: &Expr, keyword: &Token) -> R;
     fn visit_ternary_expr(
         &mut self,
         expr: &Expr,

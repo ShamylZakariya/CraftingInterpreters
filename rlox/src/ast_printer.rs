@@ -128,6 +128,10 @@ impl ExprVisitor<String> for AstPrinter {
         self.parenthesize_exprs("ternary", &vec![condition, then_value, else_value])
     }
 
+    fn visit_this_expr(&mut self, _expr: &Expr, _keyword: &Token) -> String {
+        String::from("this")
+    }
+
     fn visit_unary_expr(&mut self, _expr: &Expr, operator: &Token, right: &Box<Expr>) -> String {
         self.parenthesize_exprs(&operator.lexeme, &vec![right])
     }

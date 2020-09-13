@@ -24,14 +24,14 @@ enum VariableState {
 
 struct Variable {
     state: VariableState,
-    token: Token,
+    token: Option<Token>,
 }
 
 impl Variable {
-    fn new(token: &Token) -> Self {
+    fn new(token: Option<Token>) -> Self {
         Variable {
             state: VariableState::Declared,
-            token: token.clone(),
+            token: token,
         }
     }
 
@@ -88,12 +88,14 @@ impl<'a> Resolver<'a> {
             // look for variable definitions which were never accessed
             for var in scope.values() {
                 if !var.is_accessed() {
+                    let name = if let Some(token) = &var.token {
+                        &token.lexeme
+                    } else {
+                        "<unknown>"
+                    };
                     return Err(error::ResolveError::new(
-                        Some(var.token.clone()),
-                        &format!(
-                            "Variable \"{}\" defined but never accessed",
-                            &var.token.lexeme
-                        ),
+                        var.token.clone(),
+                        &format!("Variable \"{}\" defined but never accessed", name),
                     ));
                 }
             }
@@ -129,7 +131,7 @@ impl<'a> Resolver<'a> {
                 ));
             }
             // establish variable as defined
-            scope.insert(name.lexeme.clone(), Variable::new(name));
+            scope.insert(name.lexeme.clone(), Variable::new(Some(name.clone())));
         }
         Ok(())
     }
@@ -269,6 +271,10 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
         self.resolve_expression(else_value)
     }
 
+    fn visit_this_expr(&mut self, expr: &Expr, keyword: &Token) -> Result<()> {
+        self.resolve_local(expr, keyword)
+    }
+
     fn visit_unary_expr(
         &mut self,
         _expr: &Expr,
@@ -289,7 +295,7 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
                 }
             }
         }
-        return self.resolve_local(&expr, name);
+        self.resolve_local(&expr, name)
     }
 }
 
@@ -322,6 +328,16 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         self.declare(name)?;
         self.define(name);
 
+        self.begin_scope();
+
+        // Insert "this" into scope, but mark it accessed so it doesn't
+        // tigger an unused variable error.
+        if let Some(scope) = self.scopes.last_mut() {
+            let mut v = Variable::new(None);
+            v.mark_accessed();
+            scope.insert(String::from("this"), v);
+        }
+
         for method in methods {
             let declaration = FunctionType::Method;
             match &**method {
@@ -341,7 +357,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
             }
         }
 
-        Ok(())
+        self.end_scope()
     }
 
     fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> Result<()> {
