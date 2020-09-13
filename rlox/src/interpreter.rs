@@ -570,11 +570,33 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         &mut self,
         _stmt: &Stmt,
         name: &Token,
-        _methods: &Vec<Box<Stmt>>,
+        methods: &Vec<Box<Stmt>>,
     ) -> InterpretResult<()> {
         self.environment.define(&name.lexeme, &LoxObject::Nil);
 
-        let class_obj = LoxObject::Class(LoxClass::new(&name.lexeme));
+        let mut class_methods: HashMap<String, Rc<RefCell<LoxFunction>>> = HashMap::new();
+        for method in methods {
+            match &**method {
+                Stmt::Function {
+                    name,
+                    parameters,
+                    body,
+                } => {
+                    let function =
+                        LoxFunction::new_function(name, parameters, body, self.environment.clone());
+                    let function = Rc::new(RefCell::new(function));
+                    class_methods.insert(name.lexeme.to_owned(), function);
+                }
+                _ => {
+                    return Err(InterpretResultStatus::Error(RuntimeError::new(
+                        name,
+                        "Method in class somehow not a Stmt::Function instance.",
+                    )));
+                }
+            }
+        }
+
+        let class_obj = LoxObject::Class(LoxClass::new(&name.lexeme, class_methods));
         self.environment.assign(name, &class_obj)?;
 
         Ok(())

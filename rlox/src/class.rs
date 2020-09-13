@@ -4,20 +4,33 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::callable::LoxCallable;
 use crate::error::RuntimeError;
+use crate::function::LoxFunction;
 use crate::interpreter::{InterpretResult, Interpreter, Result};
 use crate::object::LoxObject;
 use crate::scanner::Token;
 
 pub struct ClassData {
     name: String,
+    methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
+}
+
+impl ClassData {
+    pub fn find_method(&self, name: &str) -> Option<Rc<RefCell<LoxFunction>>> {
+        if let Some(function) = self.methods.get(name) {
+            Some(function.clone())
+        } else {
+            None
+        }
+    }
 }
 
 pub struct LoxClass(Rc<RefCell<ClassData>>);
 
 impl LoxClass {
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: &str, methods: HashMap<String, Rc<RefCell<LoxFunction>>>) -> Self {
         LoxClass(Rc::new(RefCell::new(ClassData {
             name: String::from(name),
+            methods: methods,
         })))
     }
 }
@@ -78,6 +91,8 @@ impl LoxInstance {
     pub fn get(&self, name: &Token) -> Result<LoxObject> {
         if let Some(obj) = self.fields.borrow().get(&name.lexeme) {
             Ok(obj.clone())
+        } else if let Some(method) = self.class_data.borrow().find_method(&name.lexeme) {
+            Ok(LoxObject::Callable(method))
         } else {
             Err(RuntimeError::new(
                 name,

@@ -11,6 +11,7 @@ pub type Result<T> = std::result::Result<T, error::ResolveError>;
 enum FunctionType {
     NoFunction,
     Function,
+    Method,
     Lambda,
 }
 
@@ -316,10 +317,30 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         &mut self,
         _stmt: &Stmt,
         name: &Token,
-        _methods: &Vec<Box<Stmt>>,
+        methods: &Vec<Box<Stmt>>,
     ) -> Result<()> {
         self.declare(name)?;
         self.define(name);
+
+        for method in methods {
+            let declaration = FunctionType::Method;
+            match &**method {
+                Stmt::Function {
+                    name: _name,
+                    parameters,
+                    body,
+                } => {
+                    self.resolve_function(&parameters, &body, declaration)?;
+                }
+                _ => {
+                    return Err(error::ResolveError::new(
+                        Some(name.clone()),
+                        "Method in class stmt somehow not a Stmt::Function instance.",
+                    ));
+                }
+            }
+        }
+
         Ok(())
     }
 
