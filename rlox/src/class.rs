@@ -61,15 +61,24 @@ impl PartialEq<LoxClass> for LoxClass {
 
 impl LoxCallable for LoxClass {
     fn arity(&self) -> usize {
-        return 0;
+        if let Some(initializer) = self.0.borrow().find_method("init") {
+            initializer.borrow().arity()
+        } else {
+            0
+        }
     }
 
     fn call(
         &self,
-        _interpreter: &mut Interpreter,
-        _arguments: &Vec<LoxObject>,
+        interpreter: &mut Interpreter,
+        arguments: &Vec<LoxObject>,
     ) -> InterpretResult<Option<LoxObject>> {
-        Ok(Some(LoxObject::Instance(LoxInstance::new(self.0.clone()))))
+        let instance = LoxInstance::new(self.0.clone());
+        if let Some(initializer) = self.0.borrow().find_method("init") {
+            let bound = initializer.borrow().bind(&instance);
+            bound.call(interpreter, arguments)?;
+        }
+        Ok(Some(LoxObject::Instance(instance)))
     }
 }
 

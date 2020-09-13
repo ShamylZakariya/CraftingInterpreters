@@ -11,6 +11,7 @@ pub type Result<T> = std::result::Result<T, error::ResolveError>;
 enum FunctionType {
     NoFunction,
     Function,
+    Initializer, // class constructor
     Method,
     Lambda,
 }
@@ -356,13 +357,19 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         }
 
         for method in methods {
-            let declaration = FunctionType::Method;
             match &**method {
                 Stmt::Function {
-                    name: _name,
+                    name,
                     parameters,
                     body,
                 } => {
+                    let declaration = {
+                        if name.lexeme == "init" {
+                            FunctionType::Initializer
+                        } else {
+                            FunctionType::Method
+                        }
+                    };
                     self.resolve_function(&parameters, &body, declaration)?;
                 }
                 _ => {
@@ -427,7 +434,15 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
             )),
             _ => {
                 if let Some(value) = value {
-                    self.resolve_expression(value)?;
+                    match self.current_function {
+                        FunctionType::Initializer => {
+                            return Err(error::ResolveError::new(
+                                Some(keyword.clone()),
+                                "Cannot return a value from class initializer method.",
+                            ));
+                        }
+                        _ => self.resolve_expression(value)?,
+                    };
                 }
                 Ok(())
             }

@@ -13,6 +13,7 @@ pub struct LoxFunction {
     parameters: Vec<Token>,
     body: Vec<Box<Stmt>>,
     closure: Environment,
+    is_initializer: bool,
 }
 
 impl LoxFunction {
@@ -21,12 +22,14 @@ impl LoxFunction {
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
         closure: Environment,
+        is_initializer: bool,
     ) -> Self {
         LoxFunction {
             name: Some(name.clone()),
             parameters: parameters.clone(),
             body: body.clone(),
-            closure: closure,
+            closure,
+            is_initializer,
         }
     }
 
@@ -40,6 +43,7 @@ impl LoxFunction {
             parameters: parameters.clone(),
             body: body.clone(),
             closure: closure,
+            is_initializer: false,
         }
     }
 
@@ -47,7 +51,13 @@ impl LoxFunction {
         let mut environment = Environment::as_child_of(self.closure.clone());
         environment.define("this", &LoxObject::Instance(instance.clone()));
         if let Some(name) = &self.name {
-            LoxFunction::new_function(&name, &self.parameters, &self.body, environment)
+            LoxFunction::new_function(
+                &name,
+                &self.parameters,
+                &self.body,
+                environment,
+                self.is_initializer,
+            )
         } else {
             panic!("Attempted to call bind() on a lambda.");
         }
@@ -81,13 +91,29 @@ impl LoxCallable for LoxFunction {
 
         let ret = interpreter.execute_block(&self.body, env);
         match ret {
-            // if function doesn't explicitly call return, we return None for it
-            Ok(()) => Ok(None),
+            // if function doesn't explicitly call return, we return None for it, unless
+            // it's a class instance initializer in which case we return 'this'
+            Ok(()) => {
+                if self.is_initializer {
+                    Ok(Some(self.closure.get_at(0, "this")?))
+                } else {
+                    Ok(None)
+                }
+            }
             Err(e) => match e {
-                InterpretResultStatus::Return(v) => match v {
-                    Some(v) => Ok(Some(v)),
-                    None => Ok(None),
-                },
+                InterpretResultStatus::Return(v) => {
+                    if self.is_initializer {
+                        // Any call to return from an initializer will return 'this'
+                        // Note: Resolver disallows explicit value return from initializers,
+                        // so we know this will only occur for empty `return;` calls.
+                        Ok(Some(self.closure.get_at(0, "this")?))
+                    } else {
+                        match v {
+                            Some(v) => Ok(Some(v)),
+                            None => Ok(None),
+                        }
+                    }
+                }
                 _ => Err(e),
             },
         }

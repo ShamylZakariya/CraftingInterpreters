@@ -586,8 +586,16 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
                     parameters,
                     body,
                 } => {
-                    let function =
-                        LoxFunction::new_function(name, parameters, body, self.environment.clone());
+                    // if this method is called "init" we know it is the class's init() method
+                    // and need to flag it as such when creating the function.
+                    let is_init = name.lexeme == "init";
+                    let function = LoxFunction::new_function(
+                        name,
+                        parameters,
+                        body,
+                        self.environment.clone(),
+                        is_init,
+                    );
                     let function = Rc::new(RefCell::new(function));
                     class_methods.insert(name.lexeme.to_owned(), function);
                 }
@@ -624,7 +632,8 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
     ) -> InterpretResult<()> {
-        let fun = LoxFunction::new_function(name, parameters, body, self.environment.clone());
+        let fun =
+            LoxFunction::new_function(name, parameters, body, self.environment.clone(), false);
         let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
         self.environment.define(&name.lexeme, &callable);
         Ok(())
