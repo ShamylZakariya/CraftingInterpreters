@@ -16,6 +16,12 @@ enum FunctionType {
 }
 
 #[derive(Copy, Clone, Debug)]
+enum ClassType {
+    NoClass,
+    Class,
+}
+
+#[derive(Copy, Clone, Debug)]
 enum VariableState {
     Declared,
     Defined,
@@ -62,6 +68,7 @@ pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
     scopes: Vec<HashMap<String, Variable>>,
     current_function: FunctionType,
+    current_class: ClassType,
     loop_depths: Vec<i32>,
 }
 
@@ -71,6 +78,7 @@ impl<'a> Resolver<'a> {
             interpreter,
             scopes: vec![],
             current_function: FunctionType::NoFunction,
+            current_class: ClassType::NoClass,
             loop_depths: vec![0],
         }
     }
@@ -272,7 +280,13 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
     }
 
     fn visit_this_expr(&mut self, expr: &Expr, keyword: &Token) -> Result<()> {
-        self.resolve_local(expr, keyword)
+        match self.current_class {
+            ClassType::Class => self.resolve_local(expr, keyword),
+            ClassType::NoClass => Err(error::ResolveError::new(
+                Some(keyword.clone()),
+                "Cannot use \"this\" outside of a class.",
+            )),
+        }
     }
 
     fn visit_unary_expr(
@@ -325,6 +339,9 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         name: &Token,
         methods: &Vec<Box<Stmt>>,
     ) -> Result<()> {
+        let enclosing_class = self.current_class;
+        self.current_class = ClassType::Class;
+
         self.declare(name)?;
         self.define(name);
 
@@ -357,7 +374,9 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
             }
         }
 
-        self.end_scope()
+        self.end_scope()?;
+        self.current_class = enclosing_class;
+        Ok(())
     }
 
     fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> Result<()> {
