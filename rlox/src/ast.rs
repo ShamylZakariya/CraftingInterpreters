@@ -176,6 +176,7 @@ pub enum Stmt {
         name: Token,
         parameters: Vec<Token>,
         body: Vec<Box<Stmt>>,
+        is_property: bool,
     },
     If {
         condition: Box<Expr>,
@@ -213,7 +214,8 @@ impl Stmt {
                 name,
                 parameters,
                 body,
-            } => visitor.visit_function_stmt(&self, &name, &parameters, &body),
+                is_property,
+            } => visitor.visit_function_stmt(&self, &name, &parameters, &body, *is_property),
             Stmt::If {
                 condition,
                 then_branch,
@@ -240,6 +242,7 @@ pub trait StmtVisitor<R> {
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
+        is_property: bool,
     ) -> R;
     fn visit_if_stmt(
         &mut self,

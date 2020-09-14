@@ -80,6 +80,10 @@ impl LoxCallable for LoxClass {
         }
         Ok(Some(LoxObject::Instance(instance)))
     }
+
+    fn is_property(&self) -> bool {
+        false
+    }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

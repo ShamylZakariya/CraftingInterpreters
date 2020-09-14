@@ -164,8 +164,10 @@ impl StmtVisitor<String> for AstPrinter {
         name: &Token,
         _parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
+        is_property: bool,
     ) -> String {
-        self.parenthesize_stmts(&format!("fn \"{}\"", name.lexeme), body)
+        let fn_type = if is_property { "property" } else { "fn" };
+        self.parenthesize_stmts(&format!("{} \"{}\"", fn_type, name.lexeme), body)
     }
 
     fn visit_if_stmt(

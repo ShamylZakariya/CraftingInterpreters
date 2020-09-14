@@ -44,7 +44,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug scratch/scratch.lox",
+            "name": "Debug scratch/chap_12_ch_2.lox",
             "cargo": {
                 "args": [
                     "build",
@@ -56,7 +56,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [ "scratch/scratch.lox" ],
+            "args": [ "scratch/chap_12_ch_2.lox" ],
             "cwd": "${workspaceFolder}"
         },
         {

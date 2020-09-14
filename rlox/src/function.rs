@@ -14,6 +14,7 @@ pub struct LoxFunction {
     body: Vec<Box<Stmt>>,
     closure: Environment,
     is_initializer: bool,
+    is_property: bool,
 }
 
 impl LoxFunction {
@@ -23,6 +24,7 @@ impl LoxFunction {
         body: &Vec<Box<Stmt>>,
         closure: Environment,
         is_initializer: bool,
+        is_property: bool,
     ) -> Self {
         LoxFunction {
             name: Some(name.clone()),
@@ -30,6 +32,7 @@ impl LoxFunction {
             body: body.clone(),
             closure,
             is_initializer,
+            is_property,
         }
     }
 
@@ -44,6 +47,7 @@ impl LoxFunction {
             body: body.clone(),
             closure: closure,
             is_initializer: false,
+            is_property: false,
         }
     }
 
@@ -57,6 +61,7 @@ impl LoxFunction {
                 &self.body,
                 environment,
                 self.is_initializer,
+                self.is_property,
             )
         } else {
             panic!("Attempted to call bind() on a lambda.");
@@ -117,5 +122,9 @@ impl LoxCallable for LoxFunction {
                 _ => Err(e),
             },
         }
+    }
+
+    fn is_property(&self) -> bool {
+        self.is_property
     }
 }

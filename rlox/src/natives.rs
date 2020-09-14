@@ -25,4 +25,7 @@ impl callable::LoxCallable for NativeClock {
         let fractional = since_the_epoch.subsec_nanos() as f64 / 1e9;
         Ok(Some(object::LoxObject::Number(seconds + fractional)))
     }
+    fn is_property(&self) -> bool {
+        false
+    }
 }

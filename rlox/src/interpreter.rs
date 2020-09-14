@@ -431,7 +431,25 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         let object = self.evaluate(object)?;
         if let LoxObject::Instance(lox_instance) = object {
             return match lox_instance.get(name) {
-                Ok(obj) => Ok(obj),
+                Ok(obj) => {
+                    if let LoxObject::Callable(callable) = &obj {
+                        if callable.borrow().is_property() {
+                            // this is a property field on a class instance, invoke it.
+                            if let Some(r) = callable.borrow().call(self, &vec![])? {
+                                Ok(r)
+                            } else {
+                                // Property didn't explicitly return anything - which is weird, but let's
+                                // allow it because it could be desired that the property invocation causes a
+                                // desired side-effect.
+                                Ok(LoxObject::Nil)
+                            }
+                        } else {
+                            Ok(obj)
+                        }
+                    } else {
+                        Ok(obj)
+                    }
+                }
                 Err(e) => Err(InterpretResultStatus::Error(e)),
             };
         }
@@ -597,6 +615,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
                     name,
                     parameters,
                     body,
+                    is_property,
                 } => {
                     // if this method is called "init" we know it is the class's init() method
                     // and need to flag it as such when creating the function.
@@ -607,6 +626,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
                         body,
                         self.environment.clone(),
                         is_init,
+                        *is_property,
                     );
                     let function = Rc::new(RefCell::new(function));
                     class_methods.insert(name.lexeme.to_owned(), function);
@@ -643,9 +663,16 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
+        is_property: bool,
     ) -> InterpretResult<()> {
-        let fun =
-            LoxFunction::new_function(name, parameters, body, self.environment.clone(), false);
+        let fun = LoxFunction::new_function(
+            name,
+            parameters,
+            body,
+            self.environment.clone(),
+            false,
+            is_property,
+        );
         let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
         self.environment.define(&name.lexeme, &callable);
         Ok(())

@@ -10,6 +10,9 @@ pub trait LoxCallable {
         interpreter: &mut Interpreter,
         arguments: &Vec<LoxObject>,
     ) -> InterpretResult<Option<LoxObject>>;
+    // returns true if this is a property field, which is invoked
+    // simply by evaluating it, no need for a call expression.
+    fn is_property(&self) -> bool;
 }
 
 impl fmt::Debug for dyn LoxCallable {

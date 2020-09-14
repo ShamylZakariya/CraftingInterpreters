@@ -452,39 +452,68 @@ impl Parser {
                 &format!("Expect \"{}\" name.", function_type),
             )?
             .clone();
-        self.consume(
-            TokenType::LeftParen,
-            &format!("Expect \"(\" after {} name.", function_type),
-        )?;
-        let mut parameters = vec![];
-        if !self.check(TokenType::RightParen) {
-            loop {
-                if parameters.len() >= 255 {
-                    error::report::parse_error_at_token(
-                        self.peek(),
-                        "Cannot have more than 255 parameters in function declaration.",
-                    );
-                }
 
-                parameters.push(
-                    self.consume(TokenType::Identifier, "Expect parameter name.")?
-                        .clone(),
-                );
-                if !self.match_token(TokenType::Comma) {
-                    break;
-                }
+        // Methods may be defined without an argument list, making them act like
+        // property accessors.
+
+        let parens_required = match function_type {
+            CallableType::Function => true,
+            CallableType::Method => false,
+        };
+
+        let has_arguments;
+        let is_property;
+        if parens_required {
+            self.consume(
+                TokenType::LeftParen,
+                &format!("Expect \"(\" after {} name.", function_type),
+            )?;
+            has_arguments = true;
+            is_property = false;
+        } else {
+            has_arguments = self.check(TokenType::LeftParen);
+            if has_arguments {
+                is_property = false;
+                self.advance();
+            } else {
+                is_property = true;
             }
         }
-        self.consume(TokenType::RightParen, "Expect \")\" after parameter list.")?;
+
+        let mut parameters = vec![];
+        if has_arguments {
+            if !self.check(TokenType::RightParen) {
+                loop {
+                    if parameters.len() >= 255 {
+                        error::report::parse_error_at_token(
+                            self.peek(),
+                            "Cannot have more than 255 parameters in function declaration.",
+                        );
+                    }
+
+                    parameters.push(
+                        self.consume(TokenType::Identifier, "Expect parameter name.")?
+                            .clone(),
+                    );
+                    if !self.match_token(TokenType::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(TokenType::RightParen, "Expect \")\" after parameter list.")?;
+        }
+
         self.consume(
             TokenType::LeftBrace,
             &format!("Expect \"{{\" before {} body.", function_type),
         )?;
+
         let body = self.block_stmt()?;
         Ok(Box::new(Stmt::Function {
             name,
             parameters,
             body,
+            is_property,
         }))
     }
 
@@ -729,6 +758,7 @@ mod tests {
                 name,
                 parameters,
                 body,
+                is_property: _,
             } => {
                 zero_token_line_and_id(name);
                 for param in parameters {
@@ -999,12 +1029,7 @@ for (var i = 0; i < 3; i = i + 1) {
             "#,
             r#"
             class Foo {
-                fn init(){} // shouldn't have `fn`
-            }
-            "#,
-            r#"
-            class Foo {
-                init {} // missing args
+                fun init(){} // shouldn't have `fun`
             }
             "#,
         ];

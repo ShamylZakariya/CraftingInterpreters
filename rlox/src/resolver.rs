@@ -362,6 +362,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
                     name,
                     parameters,
                     body,
+                    is_property: _,
                 } => {
                     let declaration = {
                         if name.lexeme == "init" {
@@ -396,6 +397,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
+        _is_property: bool,
     ) -> Result<()> {
         self.declare(name)?;
         self.define(name);
