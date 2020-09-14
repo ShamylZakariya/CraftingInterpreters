@@ -396,6 +396,18 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
             }
 
             LoxObject::Class(class) => {
+                if args.len() != class.arity() {
+                    return Err(InterpretResultStatus::Error(RuntimeError::new(
+                        paren,
+                        format!(
+                            "Expected {} arguments but got {}",
+                            class.arity(),
+                            args.len()
+                        )
+                        .as_str(),
+                    )));
+                }
+
                 if let Some(v) = class.call(self, &args)? {
                     Ok(v)
                 } else {
@@ -752,7 +764,16 @@ mod tests {
 
     #[test]
     fn bad_expressions_are_errors() {
-        let inputs = vec!["\"Hello\" * 4", "4 * \"Hello\"", "4 + \"Hello\""];
+        let inputs = vec![
+            "\"Hello\" * 4",
+            "4 * \"Hello\"",
+            "4 + \"Hello\"",
+            "4.foo",
+            "4.foo()",
+            "\"Hello\".bar",
+            "\"Hello\".bar()",
+            "4.foo = 10",
+        ];
         for expression in inputs {
             let mut scanner = scanner::Scanner::new(expression);
             let tokens = scanner.scan_tokens();
@@ -848,6 +869,61 @@ mod tests {
                 "#,
                 vec![("a", LoxObject::Number(377.0))],
             ),
+            (
+                // `this` does what it should
+                r#"
+                class Cake {
+                    init(type) {
+                        this.type = type;
+                    }
+                    kind() {
+                        return this.type + " cake";
+                    }
+                }
+                var kind = Cake("Chocolate").kind();
+                "#,
+                vec![("kind", LoxObject::Str("Chocolate cake".to_owned()))],
+            ),
+            (
+                // method bindings should work
+                r#"
+                class Foo {
+                    init(w) {
+                        this.w = w;
+                    }
+                    what() { return this.w; }
+                }
+                var foo = Foo("bar");
+                var method = foo.what;
+                var value_0 = method();
+                foo.w = "baz";
+                var value_1 = method();
+                "#,
+                vec![
+                    ("value_0", LoxObject::Str("bar".to_owned())),
+                    ("value_1", LoxObject::Str("baz".to_owned())),
+                ],
+            ),
+            (
+                // method bindings should work
+                r#"
+                class Person {
+                    init(n) {
+                        this.n = n;
+                    }
+                    name() { return this.n; }
+                }
+                var jane = Person("jane");
+                var bill = Person("bill");
+                bill.name = jane.name;
+                var value_0 = jane.name();
+                var value_1 = bill.name(); // uses jane's `this`
+                "#,
+                vec![
+                    ("value_0", LoxObject::Str("jane".to_owned())),
+                    ("value_1", LoxObject::Str("jane".to_owned())),
+                ],
+            ),
         ];
         execute(&inputs);
     }
@@ -876,6 +952,24 @@ mod tests {
                 "#,
                 vec![("a", LoxObject::Nil)],
             ),
+            (
+                r#"
+                class Foo {
+                    init(a) {
+                        this.a = a;
+                    }
+                    get_a() { return this.a; }
+                    get_a_plus_b(b) { return this.a + b; }
+                }
+                var f = Foo(123);
+                var a = f.get_a(); // 123
+                var b = f.get_a_plus_b(1); //124
+                "#,
+                vec![
+                    ("a", LoxObject::Number(123.0)),
+                    ("b", LoxObject::Number(124.0)),
+                ],
+            ),
         ];
         execute(&inputs);
     }
@@ -898,6 +992,19 @@ mod tests {
             r#"
             fun two_args(a,b) {}
             two_args(1,2,3);
+            "#,
+            r#"
+            class Foo {
+                init(a,b,c) {}
+            }
+            Foo(1,1);
+            "#,
+            r#"
+            class Foo {
+                init() {}
+                bar(a,b){}
+            }
+            Foo().bar(1); // wrong arg count
             "#,
         ];
 

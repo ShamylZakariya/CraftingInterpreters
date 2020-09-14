@@ -987,6 +987,26 @@ for (var i = 0; i < 3; i = i + 1) {
             var b = 1 // missing semicolon
             var c = 2;
             "#,
+            r#"
+            class { // no class name
+                init(){}
+            }
+            "#,
+            r#"
+            class Foo // no curly bracket
+                init(){}
+            }
+            "#,
+            r#"
+            class Foo {
+                fn init(){} // shouldn't have `fn`
+            }
+            "#,
+            r#"
+            class Foo {
+                init {} // missing args
+            }
+            "#,
         ];
 
         for program in programs {

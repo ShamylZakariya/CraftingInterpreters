@@ -495,17 +495,21 @@ mod tests {
     use crate::parser;
     use crate::scanner;
 
-    fn verify(program: &str, expected_error: bool) {
+    enum Expectation {
+        Ok,
+        Error,
+    }
+
+    fn verify(program: &str, expect: Expectation) {
         let mut scanner = scanner::Scanner::new(program);
         let tokens = scanner.scan_tokens();
         let mut parser = parser::Parser::new(tokens);
         let ast = parser.parse().unwrap();
         let mut interpreter = Interpreter::new();
         let mut resolver = Resolver::new(&mut interpreter);
-        if expected_error {
-            assert!(resolver.resolve(&ast).is_err());
-        } else {
-            assert!(resolver.resolve(&ast).is_ok());
+        match expect {
+            Expectation::Ok => assert!(resolver.resolve(&ast).is_ok()),
+            Expectation::Error => assert!(resolver.resolve(&ast).is_err()),
         }
     }
 
@@ -517,7 +521,7 @@ mod tests {
             var a = 10;
             return "hello"; // return at global scope
             "#,
-                true,
+                Expectation::Error,
             ),
             (
                 r#"
@@ -526,12 +530,55 @@ mod tests {
                 return "hello"; // this is OK
             }
             "#,
-                false,
+                Expectation::Ok,
             ),
         ];
 
-        for (program, is_error) in inputs {
-            verify(program, is_error);
+        for (program, expectation) in inputs {
+            verify(program, expectation);
+        }
+    }
+
+    #[test]
+    fn return_value_in_class_initializer_is_error() {
+        let inputs = vec![
+            (
+                r#"
+                class Foo {
+                    init() {
+                        this.a = 0;
+                        return; // OK
+                        this.b = 1;
+                    }
+                }
+                "#,
+                Expectation::Ok,
+            ),
+            (
+                r#"
+                class Foo {
+                    init() {
+                        this.a = 0;
+                        return this.a; // Not OK
+                    }
+                }
+                "#,
+                Expectation::Error,
+            ),
+            (
+                r#"
+                class Foo {
+                    init() {
+                        return "hello"; // Not OK
+                    }
+                }
+                "#,
+                Expectation::Error,
+            ),
+        ];
+
+        for (program, expectation) in inputs {
+            verify(program, expectation);
         }
     }
 
@@ -543,7 +590,7 @@ mod tests {
             var a = 10;
             var a = 20; // OK to redefine at global scope
             "#,
-                false,
+                Expectation::Ok,
             ),
             (
                 r#"
@@ -552,12 +599,12 @@ mod tests {
                 var a = 11;
             }
             "#,
-                true,
+                Expectation::Error,
             ),
         ];
 
-        for (program, is_error) in inputs {
-            verify(program, is_error);
+        for (program, expectation) in inputs {
+            verify(program, expectation);
         }
     }
 
@@ -569,7 +616,7 @@ mod tests {
                 var a = 10;
                 break; // no good, outside a loop
                 "#,
-                true,
+                Expectation::Error,
             ),
             (
                 r#"
@@ -577,7 +624,7 @@ mod tests {
                     break; // OK, inside loop
                 }
                 "#,
-                false,
+                Expectation::Ok,
             ),
             (
                 r#"
@@ -585,7 +632,7 @@ mod tests {
                     break; // OK, inside loop
                 }
                 "#,
-                false,
+                Expectation::Ok,
             ),
             (
                 r#"
@@ -596,7 +643,7 @@ mod tests {
                     foo();
                 }
                 "#,
-                true,
+                Expectation::Error,
             ),
             (
                 r#"
@@ -610,12 +657,12 @@ mod tests {
                 }
                 foo();
                 "#,
-                true,
+                Expectation::Error,
             ),
         ];
 
-        for (program, is_error) in inputs {
-            verify(program, is_error);
+        for (program, expectation) in inputs {
+            verify(program, expectation);
         }
     }
 
@@ -628,7 +675,7 @@ mod tests {
                 var a = 10;
                 var b = 20;
                 "#,
-                false,
+                Expectation::Ok,
             ),
             (
                 r#"
@@ -636,7 +683,7 @@ mod tests {
                     var c = 3; // not ok, we're not in global scope
                 }
                 "#,
-                true,
+                Expectation::Error,
             ),
             (
                 r#"
@@ -645,7 +692,7 @@ mod tests {
                     return c; // fine, we access it here
                 }
                 "#,
-                false,
+                Expectation::Ok,
             ),
             (
                 r#"
@@ -653,7 +700,7 @@ mod tests {
                     var c = 3; // not ok, we're not in global scope
                 }
                 "#,
-                true,
+                Expectation::Error,
             ),
             (
                 r#"
@@ -662,12 +709,48 @@ mod tests {
                     print c; // fine, we access it here
                 }
                 "#,
-                false,
+                Expectation::Ok,
             ),
         ];
 
-        for (program, is_error) in inputs {
-            verify(program, is_error);
+        for (program, expectation) in inputs {
+            verify(program, expectation);
+        }
+    }
+
+    #[test]
+    fn this_outside_class_methods_is_error() {
+        let inputs = vec![
+            (
+                r#"
+                class Person {
+                    init(n) {
+                        this._name = n;
+                    }
+                    name() { return this._name; }
+                }
+                "#,
+                Expectation::Ok,
+            ),
+            (
+                r#"
+                fun foo() {
+                    return this;
+                }
+                "#,
+                Expectation::Error,
+            ),
+            (
+                r#"
+                var a = 1;
+                var b = a + this;
+                "#,
+                Expectation::Error,
+            ),
+        ];
+
+        for (program, expectation) in inputs {
+            verify(program, expectation);
         }
     }
 }
