@@ -150,8 +150,15 @@ impl StmtVisitor<String> for AstPrinter {
         self.parenthesize_stmts("break", &vec![])
     }
 
-    fn visit_class_stmt(&mut self, _stmt: &Stmt, name: &Token, methods: &Vec<Box<Stmt>>) -> String {
-        self.parenthesize_stmts(&name.lexeme, methods)
+    fn visit_class_stmt(
+        &mut self,
+        _stmt: &Stmt,
+        name: &Token,
+        methods: &Vec<Box<Stmt>>,
+        class_methods: &Vec<Box<Stmt>>,
+    ) -> String {
+        let all_methods = [&methods[..], &class_methods[..]].concat();
+        self.parenthesize_stmts(&name.lexeme, &all_methods)
     }
 
     fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> String {
@@ -164,9 +171,8 @@ impl StmtVisitor<String> for AstPrinter {
         name: &Token,
         _parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
-        is_property: bool,
+        fn_type: CallableType,
     ) -> String {
-        let fn_type = if is_property { "property" } else { "fn" };
         self.parenthesize_stmts(&format!("{} \"{}\"", fn_type, name.lexeme), body)
     }
 

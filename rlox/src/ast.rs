@@ -1,4 +1,26 @@
 use crate::scanner::*;
+use std::fmt;
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum CallableType {
+    ClassMethod,
+    Function,
+    Lambda,
+    Method,
+    Property,
+}
+
+impl fmt::Display for CallableType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CallableType::ClassMethod => write!(f, "class_method"),
+            CallableType::Function => write!(f, "function"),
+            CallableType::Lambda => write!(f, "lambda"),
+            CallableType::Method => write!(f, "method"),
+            CallableType::Property => write!(f, "property"),
+        }
+    }
+}
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Expr {
@@ -168,6 +190,7 @@ pub enum Stmt {
     Class {
         name: Token,
         methods: Vec<Box<Stmt>>,
+        class_methods: Vec<Box<Stmt>>,
     },
     Expression {
         expression: Box<Expr>,
@@ -176,7 +199,7 @@ pub enum Stmt {
         name: Token,
         parameters: Vec<Token>,
         body: Vec<Box<Stmt>>,
-        is_property: bool,
+        fn_type: CallableType,
     },
     If {
         condition: Box<Expr>,
@@ -208,14 +231,18 @@ impl Stmt {
         match self {
             Stmt::Block { statements } => visitor.visit_block_stmt(&self, statements),
             Stmt::Break { keyword } => visitor.visit_break_stmt(&self, keyword),
-            Stmt::Class { name, methods } => visitor.visit_class_stmt(&self, name, methods),
+            Stmt::Class {
+                name,
+                methods,
+                class_methods,
+            } => visitor.visit_class_stmt(&self, name, methods, class_methods),
             Stmt::Expression { expression } => visitor.visit_expression_stmt(&self, &expression),
             Stmt::Function {
                 name,
                 parameters,
                 body,
-                is_property,
-            } => visitor.visit_function_stmt(&self, &name, &parameters, &body, *is_property),
+                fn_type,
+            } => visitor.visit_function_stmt(&self, &name, &parameters, &body, *fn_type),
             Stmt::If {
                 condition,
                 then_branch,
@@ -234,7 +261,13 @@ impl Stmt {
 pub trait StmtVisitor<R> {
     fn visit_block_stmt(&mut self, stmt: &Stmt, statements: &Vec<Box<Stmt>>) -> R;
     fn visit_break_stmt(&mut self, stmt: &Stmt, keyword: &Token) -> R;
-    fn visit_class_stmt(&mut self, stmt: &Stmt, name: &Token, methods: &Vec<Box<Stmt>>) -> R;
+    fn visit_class_stmt(
+        &mut self,
+        stmt: &Stmt,
+        name: &Token,
+        methods: &Vec<Box<Stmt>>,
+        class_methods: &Vec<Box<Stmt>>,
+    ) -> R;
     fn visit_expression_stmt(&mut self, stmt: &Stmt, expression: &Box<Expr>) -> R;
     fn visit_function_stmt(
         &mut self,
@@ -242,7 +275,7 @@ pub trait StmtVisitor<R> {
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
-        is_property: bool,
+        fn_type: CallableType,
     ) -> R;
     fn visit_if_stmt(
         &mut self,

@@ -429,35 +429,41 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         name: &Token,
     ) -> InterpretResult<LoxObject> {
         let object = self.evaluate(object)?;
-        if let LoxObject::Instance(lox_instance) = object {
-            return match lox_instance.get(name) {
-                Ok(obj) => {
-                    if let LoxObject::Callable(callable) = &obj {
-                        if callable.borrow().is_property() {
-                            // this is a property field on a class instance, invoke it.
-                            if let Some(r) = callable.borrow().call(self, &vec![])? {
-                                Ok(r)
+
+        match object {
+            LoxObject::Instance(lox_instance) => {
+                match lox_instance.get(name) {
+                    Ok(obj) => {
+                        if let LoxObject::Callable(callable) = &obj {
+                            if callable.borrow().is_property() {
+                                // this is a property field on a class instance, invoke it.
+                                if let Some(r) = callable.borrow().call(self, &vec![])? {
+                                    Ok(r)
+                                } else {
+                                    // Property didn't explicitly return anything - which is weird, but let's
+                                    // allow it because it could be desired that the property invocation causes a
+                                    // desired side-effect.
+                                    Ok(LoxObject::Nil)
+                                }
                             } else {
-                                // Property didn't explicitly return anything - which is weird, but let's
-                                // allow it because it could be desired that the property invocation causes a
-                                // desired side-effect.
-                                Ok(LoxObject::Nil)
+                                Ok(obj)
                             }
                         } else {
                             Ok(obj)
                         }
-                    } else {
-                        Ok(obj)
                     }
+                    Err(e) => Err(InterpretResultStatus::Error(e)),
                 }
+            }
+            LoxObject::Class(lox_class) => match lox_class.get(name) {
+                Ok(obj) => Ok(obj),
                 Err(e) => Err(InterpretResultStatus::Error(e)),
-            };
+            },
+            _ => Err(InterpretResultStatus::Error(RuntimeError::new(
+                name,
+                "Only instances have properties.",
+            ))),
         }
-
-        Err(InterpretResultStatus::Error(RuntimeError::new(
-            name,
-            "Only instances have properties.",
-        )))
     }
 
     fn visit_grouping_expr(
@@ -533,6 +539,11 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
                 instance.set(name, &value);
                 Ok(value)
             }
+            LoxObject::Class(class) => {
+                let value = self.evaluate(value)?;
+                class.set(name, &value);
+                Ok(value)
+            }
             _ => Err(InterpretResultStatus::Error(RuntimeError::new(
                 name,
                 "Only object instances have fields.",
@@ -605,17 +616,18 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         _stmt: &Stmt,
         name: &Token,
         methods: &Vec<Box<Stmt>>,
+        class_methods: &Vec<Box<Stmt>>,
     ) -> InterpretResult<()> {
         self.environment.define(&name.lexeme, &LoxObject::Nil);
 
-        let mut class_methods: HashMap<String, Rc<RefCell<LoxFunction>>> = HashMap::new();
+        let mut instance_method_fns: HashMap<String, Rc<RefCell<LoxFunction>>> = HashMap::new();
         for method in methods {
             match &**method {
                 Stmt::Function {
                     name,
                     parameters,
                     body,
-                    is_property,
+                    fn_type,
                 } => {
                     // if this method is called "init" we know it is the class's init() method
                     // and need to flag it as such when creating the function.
@@ -626,10 +638,10 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
                         body,
                         self.environment.clone(),
                         is_init,
-                        *is_property,
+                        *fn_type,
                     );
                     let function = Rc::new(RefCell::new(function));
-                    class_methods.insert(name.lexeme.to_owned(), function);
+                    instance_method_fns.insert(name.lexeme.to_owned(), function);
                 }
                 _ => {
                     return Err(InterpretResultStatus::Error(RuntimeError::new(
@@ -640,7 +652,40 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
             }
         }
 
-        let class_obj = LoxObject::Class(LoxClass::new(&name.lexeme, class_methods));
+        let mut class_method_fns: HashMap<String, Rc<RefCell<LoxFunction>>> = HashMap::new();
+        for method in class_methods {
+            match &**method {
+                Stmt::Function {
+                    name,
+                    parameters,
+                    body,
+                    fn_type,
+                } => {
+                    let function = LoxFunction::new_function(
+                        name,
+                        parameters,
+                        body,
+                        self.environment.clone(),
+                        false,
+                        *fn_type,
+                    );
+                    let function = Rc::new(RefCell::new(function));
+                    class_method_fns.insert(name.lexeme.to_owned(), function);
+                }
+                _ => {
+                    return Err(InterpretResultStatus::Error(RuntimeError::new(
+                        name,
+                        "Method in class somehow not a Stmt::Function instance.",
+                    )));
+                }
+            }
+        }
+
+        let class_obj = LoxObject::Class(LoxClass::new(
+            &name.lexeme,
+            instance_method_fns,
+            class_method_fns,
+        ));
         self.environment.assign(name, &class_obj)?;
 
         Ok(())
@@ -663,7 +708,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
-        is_property: bool,
+        fn_type: CallableType,
     ) -> InterpretResult<()> {
         let fun = LoxFunction::new_function(
             name,
@@ -671,7 +716,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
             body,
             self.environment.clone(),
             false,
-            is_property,
+            fn_type,
         );
         let callable = LoxObject::Callable(Rc::new(RefCell::new(fun)));
         self.environment.define(&name.lexeme, &callable);
@@ -950,6 +995,82 @@ mod tests {
                     ("value_0", LoxObject::Str("jane".to_owned())),
                     ("value_1", LoxObject::Str("jane".to_owned())),
                 ],
+            ),
+            (
+                // property methods, simple 1
+                r#"
+                class Minimal {
+                    foo {
+                        return 1;
+                    }
+                }
+
+                var minimal = Minimal();
+                var value_0 = minimal.foo;
+                "#,
+                vec![("value_0", LoxObject::Number(1.0))],
+            ),
+            (
+                // property methods, simple 2
+                r#"
+                class Minimal {
+                    init(f) {
+                        this._foo = f;
+                    }
+                    foo {
+                        return this._foo;
+                    }
+                }
+
+                var minimal = Minimal(123);
+                var value_0 = minimal.foo;
+                "#,
+                vec![("value_0", LoxObject::Number(123.0))],
+            ),
+            (
+                // property methods, simple 3
+                r#"
+                class Minimal {
+                    init(f,b,z) {
+                        this._foo = f;
+                        this._bar = b;
+                        this._baz = z;
+                    }
+                    foo {
+                        return this._foo;
+                    }
+                    bar {
+                        return this._bar;
+                    }
+                    baz {
+                        return this._baz;
+                    }
+                    fbz { return this.foo + this.baz + this.bar; }
+                }
+
+                var minimal = Minimal(1,2,3);
+                var value_0 = minimal.foo;
+                var value_1 = minimal.bar;
+                var value_2 = minimal.baz;
+                var value_3 = minimal.fbz;
+                "#,
+                vec![
+                    ("value_0", LoxObject::Number(1.0)),
+                    ("value_1", LoxObject::Number(2.0)),
+                    ("value_2", LoxObject::Number(3.0)),
+                    ("value_3", LoxObject::Number(6.0)),
+                ],
+            ),
+            (
+                // class methods
+                r#"
+                class Math {
+                    class square(x) { return x * x; }
+                }
+
+                var value_0 = Math.square(2);
+                "#,
+                vec![("value_0", LoxObject::Number(4.0))],
             ),
         ];
         execute(&inputs);

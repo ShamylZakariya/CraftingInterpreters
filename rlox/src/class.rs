@@ -12,6 +12,8 @@ use crate::scanner::Token;
 pub struct ClassData {
     name: String,
     methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
+    class_fields: HashMap<String, LoxObject>,
+    class_methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
 }
 
 impl ClassData {
@@ -22,16 +24,49 @@ impl ClassData {
             None
         }
     }
+    pub fn find_class_method(&self, name: &str) -> Option<Rc<RefCell<LoxFunction>>> {
+        if let Some(function) = self.class_methods.get(name) {
+            Some(function.clone())
+        } else {
+            None
+        }
+    }
 }
 
 pub struct LoxClass(Rc<RefCell<ClassData>>);
 
 impl LoxClass {
-    pub fn new(name: &str, methods: HashMap<String, Rc<RefCell<LoxFunction>>>) -> Self {
+    pub fn new(
+        name: &str,
+        methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
+        class_methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
+    ) -> Self {
         LoxClass(Rc::new(RefCell::new(ClassData {
             name: String::from(name),
-            methods: methods,
+            methods,
+            class_fields: HashMap::new(),
+            class_methods,
         })))
+    }
+
+    pub fn get(&self, name: &Token) -> Result<LoxObject> {
+        if let Some(obj) = self.0.borrow().class_fields.get(&name.lexeme) {
+            Ok(obj.clone())
+        } else if let Some(method) = self.0.borrow().find_class_method(&name.lexeme) {
+            Ok(LoxObject::Callable(method))
+        } else {
+            Err(RuntimeError::new(
+                name,
+                &format!("Undefined variable \"{}\".", name.lexeme),
+            ))
+        }
+    }
+
+    pub fn set(&self, name: &Token, value: &LoxObject) {
+        self.0
+            .borrow_mut()
+            .class_fields
+            .insert(name.lexeme.to_owned(), value.clone());
     }
 }
 

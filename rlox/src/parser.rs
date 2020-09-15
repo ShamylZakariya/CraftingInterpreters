@@ -1,24 +1,8 @@
-use std::fmt;
-
 use crate::ast::*;
 use crate::error;
 use crate::scanner::*;
 
 pub type Result<T> = std::result::Result<T, error::ParseError>;
-
-enum CallableType {
-    Function,
-    Method,
-}
-
-impl fmt::Display for CallableType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CallableType::Function => write!(f, "function"),
-            CallableType::Method => write!(f, "method"),
-        }
-    }
-}
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -258,15 +242,22 @@ impl Parser {
         self.consume(TokenType::LeftBrace, "Expect \"{\" before class body")?;
 
         let mut methods = vec![];
+        let mut class_methods = vec![];
         while !self.check(TokenType::RightBrace) && !self.is_at_end() {
-            methods.push(self.function_stmt(CallableType::Method)?);
+            if self.check(TokenType::Class) {
+                self.advance();
+                class_methods.push(self.function_stmt(CallableType::ClassMethod)?);
+            } else {
+                methods.push(self.function_stmt(CallableType::Method)?);
+            }
         }
 
         self.consume(TokenType::RightBrace, "Expect \"}\" after class body.")?;
 
         Ok(Box::new(Stmt::Class {
-            name: name,
-            methods: methods,
+            name,
+            methods,
+            class_methods,
         }))
     }
 
@@ -457,8 +448,8 @@ impl Parser {
         // property accessors.
 
         let parens_required = match function_type {
-            CallableType::Function => true,
             CallableType::Method => false,
+            _ => true,
         };
 
         let has_arguments;
@@ -509,11 +500,20 @@ impl Parser {
         )?;
 
         let body = self.block_stmt()?;
+
+        let function_type = {
+            if is_property {
+                CallableType::Property
+            } else {
+                function_type
+            }
+        };
+
         Ok(Box::new(Stmt::Function {
             name,
             parameters,
             body,
-            is_property,
+            fn_type: function_type,
         }))
     }
 
@@ -747,9 +747,14 @@ mod tests {
                 }
             }
             Stmt::Break { keyword: _ } => {}
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                methods,
+                class_methods,
+            } => {
                 zero_token_line_and_id(name);
                 zero_stmts_line_and_id(methods);
+                zero_stmts_line_and_id(class_methods);
             }
             Stmt::Expression { expression } => {
                 zero_expr_line_and_id(expression);
@@ -758,7 +763,7 @@ mod tests {
                 name,
                 parameters,
                 body,
-                is_property: _,
+                fn_type: _,
             } => {
                 zero_token_line_and_id(name);
                 for param in parameters {

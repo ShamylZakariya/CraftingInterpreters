@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::ast::Stmt;
+use crate::ast::{CallableType, Stmt};
 use crate::callable::LoxCallable;
 use crate::class::LoxInstance;
 use crate::environment::Environment;
@@ -14,7 +14,7 @@ pub struct LoxFunction {
     body: Vec<Box<Stmt>>,
     closure: Environment,
     is_initializer: bool,
-    is_property: bool,
+    fn_type: CallableType,
 }
 
 impl LoxFunction {
@@ -24,7 +24,7 @@ impl LoxFunction {
         body: &Vec<Box<Stmt>>,
         closure: Environment,
         is_initializer: bool,
-        is_property: bool,
+        fn_type: CallableType,
     ) -> Self {
         LoxFunction {
             name: Some(name.clone()),
@@ -32,7 +32,7 @@ impl LoxFunction {
             body: body.clone(),
             closure,
             is_initializer,
-            is_property,
+            fn_type,
         }
     }
 
@@ -47,7 +47,7 @@ impl LoxFunction {
             body: body.clone(),
             closure: closure,
             is_initializer: false,
-            is_property: false,
+            fn_type: CallableType::Lambda,
         }
     }
 
@@ -61,7 +61,7 @@ impl LoxFunction {
                 &self.body,
                 environment,
                 self.is_initializer,
-                self.is_property,
+                self.fn_type,
             )
         } else {
             panic!("Attempted to call bind() on a lambda.");
@@ -125,6 +125,9 @@ impl LoxCallable for LoxFunction {
     }
 
     fn is_property(&self) -> bool {
-        self.is_property
+        match self.fn_type {
+            CallableType::Property => true,
+            _ => false,
+        }
     }
 }

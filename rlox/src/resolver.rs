@@ -12,6 +12,7 @@ enum FunctionType {
     NoFunction,
     Function,
     Initializer, // class constructor
+    ClassMethod,
     Method,
     Lambda,
 }
@@ -339,6 +340,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         _stmt: &Stmt,
         name: &Token,
         methods: &Vec<Box<Stmt>>,
+        class_methods: &Vec<Box<Stmt>>,
     ) -> Result<()> {
         let enclosing_class = self.current_class;
         self.current_class = ClassType::Class;
@@ -349,7 +351,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         self.begin_scope();
 
         // Insert "this" into scope, but mark it accessed so it doesn't
-        // tigger an unused variable error.
+        // trigger an unused variable error.
         if let Some(scope) = self.scopes.last_mut() {
             let mut v = Variable::new(None);
             v.mark_accessed();
@@ -362,7 +364,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
                     name,
                     parameters,
                     body,
-                    is_property: _,
+                    fn_type: _,
                 } => {
                     let declaration = {
                         if name.lexeme == "init" {
@@ -383,6 +385,27 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         }
 
         self.end_scope()?;
+
+        // resovle class_methods, without scoped `this`
+        for method in class_methods {
+            match &**method {
+                Stmt::Function {
+                    name: _,
+                    parameters,
+                    body,
+                    fn_type: _,
+                } => {
+                    self.resolve_function(&parameters, &body, FunctionType::ClassMethod)?;
+                }
+                _ => {
+                    return Err(error::ResolveError::new(
+                        Some(name.clone()),
+                        "Method in class stmt somehow not a Stmt::Function instance.",
+                    ));
+                }
+            }
+        }
+
         self.current_class = enclosing_class;
         Ok(())
     }
@@ -397,7 +420,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         name: &Token,
         parameters: &Vec<Token>,
         body: &Vec<Box<Stmt>>,
-        _is_property: bool,
+        _fn_type: CallableType,
     ) -> Result<()> {
         self.declare(name)?;
         self.define(name);
