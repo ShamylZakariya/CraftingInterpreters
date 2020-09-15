@@ -1072,6 +1072,24 @@ mod tests {
                 "#,
                 vec![("value_0", LoxObject::Number(4.0))],
             ),
+            (
+                // class fields != instance fields
+                r#"
+                class Foo {
+                }
+
+                Foo.value = 10;
+                var value_0 = Foo.value;
+
+                var f = Foo();
+                f.value = 11;
+                var value_1 = f.value;
+                "#,
+                vec![
+                    ("value_0", LoxObject::Number(10.0)),
+                    ("value_1", LoxObject::Number(11.0)),
+                ],
+            ),
         ];
         execute(&inputs);
     }
