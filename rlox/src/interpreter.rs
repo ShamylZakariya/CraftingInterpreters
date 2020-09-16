@@ -1222,6 +1222,33 @@ mod tests {
                     ("value_1", LoxObject::Str(String::from("Fill and Fry"))),
                 ],
             ),
+            (
+                // super is correctly resolved
+                r#"
+                class A {
+                    method() {
+                      return "A method";
+                    }
+                  }
+
+                  class B < A {
+                    method() {
+                      return "B method";
+                    }
+
+                    test() {
+                      return super.method();
+                    }
+                  }
+
+                  class C < B {}
+
+                  var value_0 = C().test();
+                "#,
+                vec![
+                    ("value_0", LoxObject::Str(String::from("A method"))),
+                ],
+            ),
         ];
         execute(&inputs);
     }
