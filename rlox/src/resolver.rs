@@ -43,6 +43,13 @@ impl Variable {
         }
     }
 
+    fn new_accessed(token: Option<Token>) -> Self {
+        Variable {
+            state: VariableState::Accessed,
+            token: token,
+        }
+    }
+
     fn mark_defined(&mut self) {
         self.state = VariableState::Defined;
     }
@@ -269,6 +276,10 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
         self.resolve_expression(object)
     }
 
+    fn visit_super_expr(&mut self, expr: &Expr, keyword: &Token, _method: &Token) -> Result<()> {
+        self.resolve_local(expr, keyword)
+    }
+
     fn visit_ternary_expr(
         &mut self,
         _expr: &Expr,
@@ -351,27 +362,36 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
 
         if let Some(super_class) = super_class {
             match &**super_class {
-                Expr::Variable{ name: super_class_name } => {
+                Expr::Variable {
+                    name: super_class_name,
+                } => {
                     if super_class_name.lexeme == name.lexeme {
                         return Err(error::ResolveError::new(
-                            Some(super_class_name.clone()), "A class cannot inherit from itself."
-                        ))
+                            Some(super_class_name.clone()),
+                            "A class cannot inherit from itself.",
+                        ));
                     }
-                },
-                _ => panic!("Superclass somehow not an Expr::Variable instance")
+                }
+                _ => panic!("Superclass somehow not an Expr::Variable instance"),
             }
 
             self.resolve_expression(super_class)?;
         }
 
+        // if we have a super class, insert "super" into scope, marking it
+        // accessed to not trigger unused variable error.
+        if let Some(_) = super_class {
+            self.begin_scope();
+            if let Some(scope) = self.scopes.last_mut() {
+                scope.insert(String::from("super"), Variable::new_accessed(None));
+            }
+        }
+
         self.begin_scope();
 
-        // Insert "this" into scope, but mark it accessed so it doesn't
-        // trigger an unused variable error.
+        // Insert "this" into scope
         if let Some(scope) = self.scopes.last_mut() {
-            let mut v = Variable::new(None);
-            v.mark_accessed();
-            scope.insert(String::from("this"), v);
+            scope.insert(String::from("this"), Variable::new_accessed(None));
         }
 
         for method in methods {
@@ -401,6 +421,10 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         }
 
         self.end_scope()?;
+
+        if let Some(_) = super_class {
+            self.end_scope()?;
+        }
 
         // resovle class_methods, without scoped `this`
         for method in class_methods {
@@ -806,7 +830,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn class_inheritance_must_be_real_and_not_recursive() {
         let inputs = vec![
@@ -822,7 +845,7 @@ mod tests {
                 class Person < Person {}
                 "#,
                 Expectation::Error,
-            )
+            ),
         ];
 
         for (program, expectation) in inputs {

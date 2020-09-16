@@ -551,8 +551,42 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         }
     }
 
-    fn visit_this_expr(&mut self, expr: &Expr, keyword: &Token) -> InterpretResult<LoxObject> {
-        self.look_up_variable(keyword, expr)
+    fn visit_super_expr(
+        &mut self,
+        expr: &Expr,
+        keyword: &Token,
+        method: &Token,
+    ) -> InterpretResult<LoxObject> {
+        if let Some(distance) = self.locals.get(expr) {
+            let super_class = self.environment.get_at(*distance, "super")?;
+
+            // 'this' is always one level nearer than 'super'
+            let instance = self.environment.get_at(*distance - 1, "this")?;
+
+            match (&super_class, &instance) {
+                (LoxObject::Class(super_class), LoxObject::Instance(instance)) => {
+                    if let Some(method) = super_class.find_method(&method.lexeme) {
+                        Ok(LoxObject::Callable(Rc::new(RefCell::new(
+                            method.borrow().bind(&instance),
+                        ))))
+                    } else {
+                        Err(InterpretResultStatus::Error(RuntimeError::new(
+                            keyword,
+                            &format!(
+                                "Unable to find property \"{}\" on super class \"{:?}\"",
+                                method.lexeme, super_class
+                            ),
+                        )))
+                    }
+                }
+                _ => {
+                    panic!("super_class and/or instance were not of expected types. Expected LoxClass,LoxInstance. Received {:?}, {:?} Interpreter and resolver may be out of sync.",
+                    super_class, instance);
+                }
+            }
+        } else {
+            panic!("Unable to look up \"super\" from locals dict. Interpreter and resolver may be out of sync.");
+        }
     }
 
     fn visit_ternary_expr(
@@ -567,6 +601,10 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
         } else {
             self._evaluate(else_value)
         }
+    }
+
+    fn visit_this_expr(&mut self, expr: &Expr, keyword: &Token) -> InterpretResult<LoxObject> {
+        self.look_up_variable(keyword, expr)
     }
 
     fn visit_unary_expr(
@@ -635,6 +673,13 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
 
         self.environment.define(&name.lexeme, &LoxObject::Nil);
 
+        // if we have a super class, define an enclosing scope which defines `super`
+        if let Some(super_class) = &super_class {
+            self.environment = Environment::as_child_of(self.environment.clone());
+            self.environment
+                .define("super", &LoxObject::Class(super_class.clone()));
+        }
+
         let mut instance_method_fns: HashMap<String, Rc<RefCell<LoxFunction>>> = HashMap::new();
         for method in methods {
             match &**method {
@@ -698,10 +743,16 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
 
         let class_obj = LoxObject::Class(LoxClass::new(
             &name.lexeme,
-            super_class,
+            super_class.clone(),
             instance_method_fns,
             class_method_fns,
         ));
+
+        // Pop the environment defining "super"
+        if let Some(_) = super_class {
+            self.environment = self.environment.enclosing().unwrap();
+        }
+
         self.environment.assign(name, &class_obj)?;
 
         Ok(())

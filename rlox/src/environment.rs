@@ -29,6 +29,10 @@ impl Environment {
         })))
     }
 
+    pub fn enclosing(&self) -> Option<Environment> {
+        self.0.borrow().enclosing.clone()
+    }
+
     pub fn define(&mut self, name: &str, value: &LoxObject) {
         self.0
             .borrow_mut()

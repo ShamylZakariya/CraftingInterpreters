@@ -63,6 +63,15 @@ impl Parser {
             }
         }
 
+        if self.match_token(TokenType::Super) {
+            let keyword = self.previous().clone();
+            self.consume(TokenType::Dot, "Expect \".\" after \"super\"")?;
+            let method = self
+                .consume(TokenType::Identifier, "Expect superclass method name")?
+                .clone();
+            return Ok(Box::new(Expr::Super { keyword, method }));
+        }
+
         if self.match_token(TokenType::This) {
             return Ok(Box::new(Expr::This {
                 keyword: self.previous().clone(),
@@ -243,7 +252,9 @@ impl Parser {
         let super_class = {
             if self.match_token(TokenType::Less) {
                 self.consume(TokenType::Identifier, "Expect superclass name.")?;
-                Some(Box::new(Expr::Variable{ name: self.previous().clone() }))
+                Some(Box::new(Expr::Variable {
+                    name: self.previous().clone(),
+                }))
             } else {
                 None
             }
@@ -884,6 +895,10 @@ mod tests {
                 zero_token_line_and_id(name);
                 zero_expr_line_and_id(value);
             }
+            Expr::Super { keyword, method } => {
+                zero_token_line_and_id(keyword);
+                zero_token_line_and_id(method);
+            }
             Expr::Ternary {
                 condition,
                 then_value,
@@ -1052,13 +1067,24 @@ for (var i = 0; i < 3; i = i + 1) {
                 fun init(){} // shouldn't have `fun`
             }
             "#,
+            r#"
+            class Foo {
+                method() {
+                    super; // super must be followed by an identifier
+                }
+            }
+            "#,
         ];
 
         for program in programs {
             let mut scanner = Scanner::new(program);
             let tokens = scanner.scan_tokens();
             let mut parser = Parser::new(tokens);
-            assert!(parser.parse().is_err(), "Program should not have parsed.");
+            let result = parser.parse();
+            if !result.is_err() {
+                eprintln!("Program should not have parsed:\n{}", program);
+            }
+            assert!(result.is_err(), "Program should not have parsed.");
         }
     }
 }

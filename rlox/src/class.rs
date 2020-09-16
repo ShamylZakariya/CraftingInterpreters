@@ -23,8 +23,7 @@ impl ClassData {
             Some(function.clone())
         } else if let Some(super_class) = &self.super_class {
             super_class.class_data.borrow().find_method(name)
-        }
-         else {
+        } else {
             None
         }
     }
@@ -56,8 +55,8 @@ impl LoxClass {
                 methods,
                 class_fields: HashMap::new(),
                 class_methods,
-                super_class: super_class
-            }))
+                super_class: super_class,
+            })),
         }
     }
 
@@ -80,12 +79,16 @@ impl LoxClass {
             .class_fields
             .insert(name.lexeme.to_owned(), value.clone());
     }
+
+    pub fn find_method(&self, name: &str) -> Option<Rc<RefCell<LoxFunction>>> {
+        self.class_data.borrow().find_method(name)
+    }
 }
 
 impl Clone for LoxClass {
     fn clone(&self) -> Self {
         LoxClass {
-            class_data: self.class_data.clone()
+            class_data: self.class_data.clone(),
         }
     }
 }

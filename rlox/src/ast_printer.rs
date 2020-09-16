@@ -118,6 +118,10 @@ impl ExprVisitor<String> for AstPrinter {
         self.parenthesize_exprs(&format!("set \"{}\"", &name.lexeme), &vec![object, value])
     }
 
+    fn visit_super_expr(&mut self, _expr: &Expr, _keyword: &Token, method: &Token) -> String {
+        format!("(super::{})", method.lexeme)
+    }
+
     fn visit_ternary_expr(
         &mut self,
         _expr: &Expr,
@@ -161,22 +165,9 @@ impl StmtVisitor<String> for AstPrinter {
         let all_methods = [&methods[..], &class_methods[..]].concat();
         if let Some(super_class) = super_class {
             let sc = self.parenthesize_exprs("superclass", &vec![super_class]);
-            self.parenthesize_stmts(
-                &format!(
-                    "(class {}({}))",
-                    name.lexeme,
-                    sc
-                ),
-                &all_methods,
-            )
+            self.parenthesize_stmts(&format!("(class {}({}))", name.lexeme, sc), &all_methods)
         } else {
-            self.parenthesize_stmts(
-                &format!(
-                    "(class {})",
-                    name.lexeme
-                ),
-                &all_methods,
-            )
+            self.parenthesize_stmts(&format!("(class {})", name.lexeme), &all_methods)
         }
     }
 
