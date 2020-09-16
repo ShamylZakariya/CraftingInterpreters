@@ -1157,6 +1157,71 @@ mod tests {
                     ("value_1", LoxObject::Number(11.0)),
                 ],
             ),
+            (
+                // basic inheritance
+                r#"
+                class Doughnut {
+                    cook() {
+                      return "Fry";
+                    }
+                  }
+
+                  class BostonCream < Doughnut {}
+
+                  var value_0 = Doughnut().cook();
+                  var value_1 = BostonCream().cook();
+                "#,
+                vec![
+                    ("value_0", LoxObject::Str(String::from("Fry"))),
+                    ("value_1", LoxObject::Str(String::from("Fry"))),
+                ],
+            ),
+            (
+                // basic overidding
+                r#"
+                class Doughnut {
+                    cook() {
+                      return "Fry";
+                    }
+                  }
+
+                  class BostonCream < Doughnut {
+                      cook() {
+                          return "Fill and Fry";
+                      }
+                  }
+
+                  var value_0 = Doughnut().cook();
+                  var value_1 = BostonCream().cook();
+                "#,
+                vec![
+                    ("value_0", LoxObject::Str(String::from("Fry"))),
+                    ("value_1", LoxObject::Str(String::from("Fill and Fry"))),
+                ],
+            ),
+            (
+                // basic overidding with super
+                r#"
+                class Doughnut {
+                    cook() {
+                      return "Fry";
+                    }
+                  }
+
+                  class BostonCream < Doughnut {
+                      cook() {
+                          return "Fill and " + super.cook();
+                      }
+                  }
+
+                  var value_0 = Doughnut().cook();
+                  var value_1 = BostonCream().cook();
+                "#,
+                vec![
+                    ("value_0", LoxObject::Str(String::from("Fry"))),
+                    ("value_1", LoxObject::Str(String::from("Fill and Fry"))),
+                ],
+            ),
         ];
         execute(&inputs);
     }
