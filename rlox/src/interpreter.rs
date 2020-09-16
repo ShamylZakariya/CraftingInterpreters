@@ -615,9 +615,24 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
         &mut self,
         _stmt: &Stmt,
         name: &Token,
+        super_class: &Option<Box<Expr>>,
         methods: &Vec<Box<Stmt>>,
         class_methods: &Vec<Box<Stmt>>,
     ) -> InterpretResult<()> {
+        let super_class = if let Some(sc) = super_class {
+            match self.evaluate(sc)? {
+                LoxObject::Class(c) => Some(c),
+                _ => {
+                    return Err(InterpretResultStatus::Error(RuntimeError::new(
+                        name,
+                        "Superclass must be a class.",
+                    )))
+                }
+            }
+        } else {
+            None
+        };
+
         self.environment.define(&name.lexeme, &LoxObject::Nil);
 
         let mut instance_method_fns: HashMap<String, Rc<RefCell<LoxFunction>>> = HashMap::new();
@@ -683,6 +698,7 @@ impl StmtVisitor<InterpretResult<()>> for Interpreter {
 
         let class_obj = LoxObject::Class(LoxClass::new(
             &name.lexeme,
+            super_class,
             instance_method_fns,
             class_method_fns,
         ));

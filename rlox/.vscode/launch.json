@@ -56,7 +56,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [ "scratch/chap_12_ch_1.lox" ],
+            "args": [ "scratch/chap_13.lox" ],
             "cwd": "${workspaceFolder}"
         },
         {

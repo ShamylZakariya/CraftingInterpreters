@@ -239,6 +239,16 @@ impl Parser {
         let name = self
             .consume(TokenType::Identifier, "Expect class name")?
             .clone();
+
+        let super_class = {
+            if self.match_token(TokenType::Less) {
+                self.consume(TokenType::Identifier, "Expect superclass name.")?;
+                Some(Box::new(Expr::Variable{ name: self.previous().clone() }))
+            } else {
+                None
+            }
+        };
+
         self.consume(TokenType::LeftBrace, "Expect \"{\" before class body")?;
 
         let mut methods = vec![];
@@ -256,6 +266,7 @@ impl Parser {
 
         Ok(Box::new(Stmt::Class {
             name,
+            super_class,
             methods,
             class_methods,
         }))
@@ -749,10 +760,14 @@ mod tests {
             Stmt::Break { keyword: _ } => {}
             Stmt::Class {
                 name,
+                super_class,
                 methods,
                 class_methods,
             } => {
                 zero_token_line_and_id(name);
+                if let Some(super_class) = super_class {
+                    zero_expr_line_and_id(super_class);
+                }
                 zero_stmts_line_and_id(methods);
                 zero_stmts_line_and_id(class_methods);
             }

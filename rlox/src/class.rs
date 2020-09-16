@@ -14,45 +14,57 @@ pub struct ClassData {
     methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
     class_fields: HashMap<String, LoxObject>,
     class_methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
+    super_class: Option<LoxClass>,
 }
 
 impl ClassData {
     pub fn find_method(&self, name: &str) -> Option<Rc<RefCell<LoxFunction>>> {
         if let Some(function) = self.methods.get(name) {
             Some(function.clone())
-        } else {
+        } else if let Some(super_class) = &self.super_class {
+            super_class.class_data.borrow().find_method(name)
+        }
+         else {
             None
         }
     }
     pub fn find_class_method(&self, name: &str) -> Option<Rc<RefCell<LoxFunction>>> {
         if let Some(function) = self.class_methods.get(name) {
             Some(function.clone())
+        } else if let Some(super_class) = &self.super_class {
+            super_class.class_data.borrow().find_class_method(name)
         } else {
             None
         }
     }
 }
 
-pub struct LoxClass(Rc<RefCell<ClassData>>);
+pub struct LoxClass {
+    class_data: Rc<RefCell<ClassData>>,
+}
 
 impl LoxClass {
     pub fn new(
         name: &str,
+        super_class: Option<LoxClass>,
         methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
         class_methods: HashMap<String, Rc<RefCell<LoxFunction>>>,
     ) -> Self {
-        LoxClass(Rc::new(RefCell::new(ClassData {
-            name: String::from(name),
-            methods,
-            class_fields: HashMap::new(),
-            class_methods,
-        })))
+        LoxClass {
+            class_data: Rc::new(RefCell::new(ClassData {
+                name: String::from(name),
+                methods,
+                class_fields: HashMap::new(),
+                class_methods,
+                super_class: super_class
+            }))
+        }
     }
 
     pub fn get(&self, name: &Token) -> Result<LoxObject> {
-        if let Some(obj) = self.0.borrow().class_fields.get(&name.lexeme) {
+        if let Some(obj) = self.class_data.borrow().class_fields.get(&name.lexeme) {
             Ok(obj.clone())
-        } else if let Some(method) = self.0.borrow().find_class_method(&name.lexeme) {
+        } else if let Some(method) = self.class_data.borrow().find_class_method(&name.lexeme) {
             Ok(LoxObject::Callable(method))
         } else {
             Err(RuntimeError::new(
@@ -63,7 +75,7 @@ impl LoxClass {
     }
 
     pub fn set(&self, name: &Token, value: &LoxObject) {
-        self.0
+        self.class_data
             .borrow_mut()
             .class_fields
             .insert(name.lexeme.to_owned(), value.clone());
@@ -72,19 +84,21 @@ impl LoxClass {
 
 impl Clone for LoxClass {
     fn clone(&self) -> Self {
-        LoxClass(self.0.clone())
+        LoxClass {
+            class_data: self.class_data.clone()
+        }
     }
 }
 
 impl fmt::Debug for LoxClass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<class \"{}\">", self.0.borrow().name)
+        write!(f, "<class \"{}\">", self.class_data.borrow().name)
     }
 }
 
 impl fmt::Display for LoxClass {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.borrow().name)
+        write!(f, "{}", self.class_data.borrow().name)
     }
 }
 
@@ -96,7 +110,7 @@ impl PartialEq<LoxClass> for LoxClass {
 
 impl LoxCallable for LoxClass {
     fn arity(&self) -> usize {
-        if let Some(initializer) = self.0.borrow().find_method("init") {
+        if let Some(initializer) = self.class_data.borrow().find_method("init") {
             initializer.borrow().arity()
         } else {
             0
@@ -108,8 +122,8 @@ impl LoxCallable for LoxClass {
         interpreter: &mut Interpreter,
         arguments: &Vec<LoxObject>,
     ) -> InterpretResult<Option<LoxObject>> {
-        let instance = LoxInstance::new(self.0.clone());
-        if let Some(initializer) = self.0.borrow().find_method("init") {
+        let instance = LoxInstance::new(self.class_data.clone());
+        if let Some(initializer) = self.class_data.borrow().find_method("init") {
             let bound = initializer.borrow().bind(&instance);
             bound.call(interpreter, arguments)?;
         }
@@ -146,7 +160,7 @@ impl LoxInstance {
         } else {
             Err(RuntimeError::new(
                 name,
-                &format!("Undefined variable \"{}\".", name.lexeme),
+                &format!("Undefined property \"{}\".", name.lexeme),
             ))
         }
     }

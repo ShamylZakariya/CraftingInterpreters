@@ -189,6 +189,7 @@ pub enum Stmt {
     },
     Class {
         name: Token,
+        super_class: Option<Box<Expr>>,
         methods: Vec<Box<Stmt>>,
         class_methods: Vec<Box<Stmt>>,
     },
@@ -233,9 +234,10 @@ impl Stmt {
             Stmt::Break { keyword } => visitor.visit_break_stmt(&self, keyword),
             Stmt::Class {
                 name,
+                super_class,
                 methods,
                 class_methods,
-            } => visitor.visit_class_stmt(&self, name, methods, class_methods),
+            } => visitor.visit_class_stmt(&self, name, super_class, methods, class_methods),
             Stmt::Expression { expression } => visitor.visit_expression_stmt(&self, &expression),
             Stmt::Function {
                 name,
@@ -265,6 +267,7 @@ pub trait StmtVisitor<R> {
         &mut self,
         stmt: &Stmt,
         name: &Token,
+        super_class: &Option<Box<Expr>>,
         methods: &Vec<Box<Stmt>>,
         class_methods: &Vec<Box<Stmt>>,
     ) -> R;

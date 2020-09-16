@@ -339,6 +339,7 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         &mut self,
         _stmt: &Stmt,
         name: &Token,
+        super_class: &Option<Box<Expr>>,
         methods: &Vec<Box<Stmt>>,
         class_methods: &Vec<Box<Stmt>>,
     ) -> Result<()> {
@@ -347,6 +348,21 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
 
         self.declare(name)?;
         self.define(name);
+
+        if let Some(super_class) = super_class {
+            match &**super_class {
+                Expr::Variable{ name: super_class_name } => {
+                    if super_class_name.lexeme == name.lexeme {
+                        return Err(error::ResolveError::new(
+                            Some(super_class_name.clone()), "A class cannot inherit from itself."
+                        ))
+                    }
+                },
+                _ => panic!("Superclass somehow not an Expr::Variable instance")
+            }
+
+            self.resolve_expression(super_class)?;
+        }
 
         self.begin_scope();
 
@@ -532,9 +548,20 @@ mod tests {
         let ast = parser.parse().unwrap();
         let mut interpreter = Interpreter::new();
         let mut resolver = Resolver::new(&mut interpreter);
+        let result = resolver.resolve(&ast);
         match expect {
-            Expectation::Ok => assert!(resolver.resolve(&ast).is_ok()),
-            Expectation::Error => assert!(resolver.resolve(&ast).is_err()),
+            Expectation::Ok => {
+                if !result.is_ok() {
+                    eprintln!("Src:\n{}\nError:{:?}", program, result);
+                }
+                assert!(result.is_ok());
+            }
+            Expectation::Error => {
+                if !result.is_err() {
+                    eprintln!("Src:\n{}\nError:{:?}", program, result);
+                }
+                assert!(result.is_err());
+            }
         }
     }
 
@@ -772,6 +799,30 @@ mod tests {
                 "#,
                 Expectation::Error,
             ),
+        ];
+
+        for (program, expectation) in inputs {
+            verify(program, expectation);
+        }
+    }
+
+
+    #[test]
+    fn class_inheritance_must_be_real_and_not_recursive() {
+        let inputs = vec![
+            (
+                r#"
+                class Entity {}
+                class Person < Entity {}
+                "#,
+                Expectation::Ok,
+            ),
+            (
+                r#"
+                class Person < Person {}
+                "#,
+                Expectation::Error,
+            )
         ];
 
         for (program, expectation) in inputs {

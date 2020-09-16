@@ -154,11 +154,30 @@ impl StmtVisitor<String> for AstPrinter {
         &mut self,
         _stmt: &Stmt,
         name: &Token,
+        super_class: &Option<Box<Expr>>,
         methods: &Vec<Box<Stmt>>,
         class_methods: &Vec<Box<Stmt>>,
     ) -> String {
         let all_methods = [&methods[..], &class_methods[..]].concat();
-        self.parenthesize_stmts(&name.lexeme, &all_methods)
+        if let Some(super_class) = super_class {
+            let sc = self.parenthesize_exprs("superclass", &vec![super_class]);
+            self.parenthesize_stmts(
+                &format!(
+                    "(class {}({}))",
+                    name.lexeme,
+                    sc
+                ),
+                &all_methods,
+            )
+        } else {
+            self.parenthesize_stmts(
+                &format!(
+                    "(class {})",
+                    name.lexeme
+                ),
+                &all_methods,
+            )
+        }
     }
 
     fn visit_expression_stmt(&mut self, _stmt: &Stmt, expression: &Box<Expr>) -> String {

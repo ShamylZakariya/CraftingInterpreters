@@ -6,6 +6,7 @@ LoxObject::Callable has visible Rc<RefCell<dyn LoxCallable>>) which is ugly and 
         - What to name it? Trait already owns LoxCallable
         - Should it implement the trait? Will that work without dyn for dynamic dispatch? SHouldn't be an issue since it will be monomorphically represented, and will own the dyn instance.
 
+Does LoxClass need to wrap ClassData? Can it just own that data?
 
 # Thoughts
 
