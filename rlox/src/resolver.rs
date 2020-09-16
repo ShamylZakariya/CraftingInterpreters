@@ -21,6 +21,7 @@ enum FunctionType {
 enum ClassType {
     NoClass,
     Class,
+    Subclass,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -277,7 +278,17 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
     }
 
     fn visit_super_expr(&mut self, expr: &Expr, keyword: &Token, _method: &Token) -> Result<()> {
-        self.resolve_local(expr, keyword)
+        match self.current_class {
+            ClassType::Subclass => self.resolve_local(expr, keyword),
+            ClassType::Class => Err(error::ResolveError::new(
+                Some(keyword.clone()),
+                "Cannot use \"super\" in a class without a superclass.",
+            )),
+            ClassType::NoClass => Err(error::ResolveError::new(
+                Some(keyword.clone()),
+                "Cannot use \"super\" outside of a class.",
+            )),
+        }
     }
 
     fn visit_ternary_expr(
@@ -294,11 +305,11 @@ impl<'a> ExprVisitor<Result<()>> for Resolver<'a> {
 
     fn visit_this_expr(&mut self, expr: &Expr, keyword: &Token) -> Result<()> {
         match self.current_class {
-            ClassType::Class => self.resolve_local(expr, keyword),
             ClassType::NoClass => Err(error::ResolveError::new(
                 Some(keyword.clone()),
                 "Cannot use \"this\" outside of a class.",
             )),
+            _ => self.resolve_local(expr, keyword),
         }
     }
 
@@ -361,6 +372,8 @@ impl<'a> StmtVisitor<Result<()>> for Resolver<'a> {
         self.define(name);
 
         if let Some(super_class) = super_class {
+            self.current_class = ClassType::Subclass;
+
             match &**super_class {
                 Expr::Variable {
                     name: super_class_name,
@@ -843,6 +856,47 @@ mod tests {
             (
                 r#"
                 class Person < Person {}
+                "#,
+                Expectation::Error,
+            ),
+        ];
+
+        for (program, expectation) in inputs {
+            verify(program, expectation);
+        }
+    }
+
+    #[test]
+    fn super_may_only_be_used_in_subclasses() {
+        let inputs = vec![
+            (
+                r#"
+                class Entity {
+                    method(){}
+                }
+                class Person < Entity {
+                    method(){
+                        super.method();
+                    }
+                }
+                "#,
+                Expectation::Ok,
+            ),
+            (
+                r#"
+                class Person {
+                    method() {
+                        super.method();
+                    }
+                }
+                "#,
+                Expectation::Error,
+            ),
+            (
+                r#"
+                fun method() {
+                    super.method();
+                }
                 "#,
                 Expectation::Error,
             ),

@@ -1245,9 +1245,7 @@ mod tests {
 
                   var value_0 = C().test();
                 "#,
-                vec![
-                    ("value_0", LoxObject::Str(String::from("A method"))),
-                ],
+                vec![("value_0", LoxObject::Str(String::from("A method")))],
             ),
         ];
         execute(&inputs);
