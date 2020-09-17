@@ -26,7 +26,6 @@ impl AstPrinter {
             sequence.push_str(expr.accept(self).as_str());
         }
 
-        // sequence.push_str("\n");
         sequence.push_str(")");
         return sequence;
     }
@@ -40,7 +39,6 @@ impl AstPrinter {
             sequence.push_str(stmt.accept(self).as_str());
         }
 
-        // sequence.push_str("\n");
         sequence.push_str(")");
         return sequence;
     }

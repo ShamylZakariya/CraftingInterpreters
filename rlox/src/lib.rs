@@ -108,8 +108,7 @@ impl Lox {
         // if there's only 1 statement, and it is actually an expression,
         // evaluate it and print result to console. Otherwise execute as a program.
         if statements.len() == 1 {
-            let first = statements[0].clone();
-            match *first {
+            match &*statements[0] {
                 Stmt::Expression { expression } => {
                     did_evaluate_single_expression = true;
                     match self.interpreter.evaluate(&expression) {
