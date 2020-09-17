@@ -1141,6 +1141,33 @@ mod tests {
                 ],
             ),
             (
+                // multiple vars pointing to a single instance
+                r#"
+                class A {
+                    init(v) {
+                      this._v = v;
+                    }
+
+                    foo { return this._v; }
+                  }
+
+                  var a = A(11);
+                  var value_0 = a.foo;
+                  var b = a;
+                  var value_1 = b.foo;
+
+                  b._v = 12;
+                  var value_2 = a.foo;
+                  var value_3 = b.foo;
+                  "#,
+                vec![
+                    ("value_0", LoxObject::Number(11.0)),
+                    ("value_1", LoxObject::Number(11.0)),
+                    ("value_2", LoxObject::Number(12.0)),
+                    ("value_3", LoxObject::Number(12.0)),
+                ],
+            ),
+            (
                 // class methods
                 r#"
                 class Math {
@@ -1278,8 +1305,8 @@ mod tests {
                 "#,
                 vec![
                     ("value_0", LoxObject::Str(String::from("Tasty"))),
-                    ("value_1", LoxObject::Str(String::from("Tasty")))
-                ]
+                    ("value_1", LoxObject::Str(String::from("Tasty"))),
+                ],
             ),
         ];
         execute(&inputs);
