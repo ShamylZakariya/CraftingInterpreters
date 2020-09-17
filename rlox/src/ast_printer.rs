@@ -1,11 +1,15 @@
 use crate::ast::*;
 use crate::scanner::*;
 
-pub struct AstPrinter;
+pub struct AstPrinter {
+    depth:i32,
+}
 
 impl AstPrinter {
     pub fn new() -> Self {
-        AstPrinter {}
+        AstPrinter {
+            depth: 0
+        }
     }
 
     pub fn generate(&mut self, statements: &Vec<Box<Stmt>>) -> String {
@@ -31,6 +35,7 @@ impl AstPrinter {
     }
 
     fn parenthesize_stmts(&mut self, name: &str, statements: &Vec<Box<Stmt>>) -> String {
+        self.depth += 1;
         let mut sequence = String::from("(");
         sequence.push_str(name);
 
@@ -40,6 +45,10 @@ impl AstPrinter {
         }
 
         sequence.push_str(")");
+        self.depth -= 1;
+        if self.depth == 0 {
+            sequence.push_str("\n");
+        }
         return sequence;
     }
 }
@@ -163,7 +172,7 @@ impl StmtVisitor<String> for AstPrinter {
         let all_methods = [&methods[..], &class_methods[..]].concat();
         if let Some(super_class) = super_class {
             let sc = self.parenthesize_exprs("superclass", &vec![super_class]);
-            self.parenthesize_stmts(&format!("(class {}({}))", name.lexeme, sc), &all_methods)
+            self.parenthesize_stmts(&format!("(class {} < {})", name.lexeme, sc), &all_methods)
         } else {
             self.parenthesize_stmts(&format!("(class {})", name.lexeme), &all_methods)
         }
