@@ -566,9 +566,21 @@ impl ExprVisitor<InterpretResult<LoxObject>> for Interpreter {
             match (&super_class, &instance) {
                 (LoxObject::Class(super_class), LoxObject::Instance(instance)) => {
                     if let Some(method) = super_class.find_method(&method.lexeme) {
-                        Ok(LoxObject::Callable(Rc::new(RefCell::new(
-                            method.borrow().bind(&instance),
-                        ))))
+                        if method.borrow().is_property() {
+                            // this is a property field on a class instance, invoke it.
+                            if let Some(r) = method.borrow().call(self, &vec![])? {
+                                Ok(r)
+                            } else {
+                                // Property didn't explicitly return anything - which is weird, but let's
+                                // allow it because it could be desired that the property invocation causes a
+                                // desired side-effect.
+                                Ok(LoxObject::Nil)
+                            }
+                        } else {
+                            Ok(LoxObject::Callable(Rc::new(RefCell::new(
+                                method.borrow().bind(&instance),
+                            ))))
+                        }
                     } else {
                         Err(InterpretResultStatus::Error(RuntimeError::new(
                             keyword,
@@ -1246,6 +1258,28 @@ mod tests {
                   var value_0 = C().test();
                 "#,
                 vec![("value_0", LoxObject::Str(String::from("A method")))],
+            ),
+            (
+                r#"
+                class Doughnut {
+                    what {
+                      return "Tasty";
+                    }
+                  }
+
+                  class BostonCream < Doughnut {
+                    cook() {
+                      return super.what;
+                    }
+                  }
+
+                  var value_0 = Doughnut().what;
+                  var value_1 = BostonCream().cook();
+                "#,
+                vec![
+                    ("value_0", LoxObject::Str(String::from("Tasty"))),
+                    ("value_1", LoxObject::Str(String::from("Tasty")))
+                ]
             ),
         ];
         execute(&inputs);
