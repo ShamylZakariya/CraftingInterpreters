@@ -1290,22 +1290,46 @@ mod tests {
                 r#"
                 class Doughnut {
                     what {
-                      return "Tasty";
+                        return "Tasty";
                     }
-                  }
+                }
 
-                  class BostonCream < Doughnut {
+                class BostonCream < Doughnut {
                     cook() {
-                      return super.what;
+                        return super.what;
                     }
-                  }
+                }
 
-                  var value_0 = Doughnut().what;
-                  var value_1 = BostonCream().cook();
+                var value_0 = Doughnut().what;
+                var value_1 = BostonCream().cook();
                 "#,
                 vec![
                     ("value_0", LoxObject::Str(String::from("Tasty"))),
                     ("value_1", LoxObject::Str(String::from("Tasty"))),
+                ],
+            ),
+            (
+                // class methods can be called by subclasses
+                r#"
+                class A {
+                class method() { return 1; }
+                }
+
+                class B < A {
+                foo() {
+                    return A.method() + B.method();
+                }
+                }
+
+                var b = B();
+                var value_0 = A.method();
+                var value_1 = B.method();
+                var value_2 = b.foo();
+                "#,
+                vec![
+                    ("value_0", LoxObject::Number(1.0)),
+                    ("value_1", LoxObject::Number(1.0)),
+                    ("value_2", LoxObject::Number(2.0)),
                 ],
             ),
         ];
