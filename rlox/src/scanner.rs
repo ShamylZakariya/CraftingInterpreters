@@ -346,7 +346,7 @@ impl Scanner<'_> {
 
         tokens.push(Token::new(
             TokenType::Str,
-            String::from(string_value.as_str()),
+            string_value.clone(),
             Some(Literal::Str(string_value)),
             self.line,
             self.next_token_id(),
@@ -380,7 +380,7 @@ impl Scanner<'_> {
         if let Ok(v) = d {
             tokens.push(Token::new(
                 TokenType::Number,
-                String::from(string_value.as_str()),
+                string_value,
                 Some(Literal::Number(v)),
                 self.line,
                 self.next_token_id(),
@@ -393,15 +393,15 @@ impl Scanner<'_> {
 
     // Consumes an identifier and writes it into tokens.
     fn identifier(&mut self, current_grapheme: &str, tokens: &mut Vec<Token>) {
-        let mut string_value = String::new();
-        string_value.push_str(current_grapheme);
+        let mut identifier = String::new();
+        identifier.push_str(current_grapheme);
 
         while is_alpha_numeric(self.peek()) {
-            string_value.push_str(self.peek());
+            identifier.push_str(self.peek());
             self.advance();
         }
 
-        let identifier = String::from(string_value.as_str());
+        let identifier = identifier;
         let identifier_type = self.keywords.get(&identifier);
         match identifier_type {
             Some(token_type) => {
