@@ -1,5 +1,10 @@
 # TODO
 
+Make Scanner vend Token<'a> where the lifetime is bound to the str passed to scanner
+    - Not trivial. RIght now we build lexemes etc by advancing through graphemes, building a String through concatenation. A different approach would be to return a range (e.g. (start, length)) which could be used to cut a str slice.
+
+
+
 LoxObject::Callable has visible Rc<RefCell<dyn LoxCallable>>) which is ugly and punts a lot of responsibility to users of it; is there a way to hide the Rc<RefCell<>> with trickery like we've done for Environment?
     - Could be done by making a thin struct which has Rc<RefCell<dyn LoxCallable>> as its only field, and which implements the LoxCallable trait, as well as Copy/clone/etc?
     - Problems:
