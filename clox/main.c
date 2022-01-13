@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <libclox/common.h>
-#include <libclox/vm.h>
+// #include <libclox/common.h>
+// #include <libclox/vm.h>
 
 //-----------------------------------------------------------------------------
 
@@ -38,14 +38,6 @@ static char* readFile(const char* path)
 
 static void runFile(const char* path)
 {
-    char* source = readFile(path);
-    InterpretResult result = interpret(source);
-    free(source);
-
-    if (result == INTERPRET_COMPILE_ERROR)
-        exit(65);
-    if (result == INTERPRET_RUNTIME_ERROR)
-        exit(70);
 }
 
 static void repl()
@@ -58,8 +50,6 @@ static void repl()
             printf("\n");
             break;
         }
-
-        interpret(line);
     }
 }
 
@@ -67,8 +57,6 @@ static void repl()
 
 int main(int argc, const char* argv[])
 {
-    initVM();
-
     if (argc == 1) {
         repl();
     } else if (argc == 2) {
@@ -77,8 +65,6 @@ int main(int argc, const char* argv[])
         fprintf(stderr, "Usage: clox [path]\n");
         exit(64);
     }
-
-    freeVM();
 
     return 0;
 }
