@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-// #include <libclox/common.h>
-// #include <libclox/vm.h>
+#include <libclox/common.h>
+#include <libclox/chunk.h>
+#include <libclox/debug.h>
 
 //-----------------------------------------------------------------------------
 
@@ -57,14 +58,22 @@ static void repl()
 
 int main(int argc, const char* argv[])
 {
-    if (argc == 1) {
-        repl();
-    } else if (argc == 2) {
-        runFile(argv[1]);
-    } else {
-        fprintf(stderr, "Usage: clox [path]\n");
-        exit(64);
-    }
-
+    Chunk chunk;
+    initChunk(&chunk);
+    writeChunk(&chunk, OP_RETURN);
+    disassembleChunk(&chunk, "test chunk");
+    freeChunk(&chunk);
     return 0;
+
+
+    // if (argc == 1) {
+    //     repl();
+    // } else if (argc == 2) {
+    //     runFile(argv[1]);
+    // } else {
+    //     fprintf(stderr, "Usage: clox [path]\n");
+    //     exit(64);
+    // }
+
+    // return 0;
 }
