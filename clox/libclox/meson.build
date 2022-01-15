@@ -2,6 +2,8 @@ clox_lib_sources = [
     'chunk.c',
     'debug.c',
     'memory.c',
+    'value.c',
+    'vm.c',
 ]
 
 clox_lib = static_library('clox',
