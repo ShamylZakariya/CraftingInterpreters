@@ -60,7 +60,7 @@ static char peek()
     return *scanner.current;
 }
 
-static bool peekNext()
+static char peekNext()
 {
     if (isAtEnd())
         return '\0';
