@@ -3,6 +3,7 @@
         "common.h": "c",
         "chunk.h": "c",
         "cstdlib": "c",
-        "value.h": "c"
+        "value.h": "c",
+        "compiler.h": "c"
     }
 }
