@@ -32,9 +32,11 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key)
             return entry;
         }
 
-
         index = (index + 1) % capacity;
     }
+
+    // Unreachable
+    return NULL;
 }
 
 static void adjustCapacity(Table* table, int capacity)
@@ -120,7 +122,8 @@ bool tableDelete(Table* table, ObjString* key)
 
     // FInd the entry
     Entry* entry = findEntry(table->entries, table->capacity, key);
-    if (entry->key == NULL) return false;
+    if (entry->key == NULL)
+        return false;
 
     // Place a tombstone in the entry
     entry->key = NULL;
@@ -128,7 +131,7 @@ bool tableDelete(Table* table, ObjString* key)
     return true;
 }
 
-void tableAddAdd(Table* from, Table* to)
+void tableAddAll(Table* from, Table* to)
 {
     for (int i = 0; i < from->capacity; i++) {
         Entry* entry = &from->entries[i];
@@ -136,4 +139,30 @@ void tableAddAdd(Table* from, Table* to)
             tableSet(to, entry->key, entry->value);
         }
     }
+}
+
+ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash)
+{
+    if (table->count == 0) {
+        return NULL;
+    }
+
+    uint32_t index = hash % table->capacity;
+    for (;;) {
+        Entry* entry = &table->entries[index];
+        if (entry->key == NULL) {
+            // stop if we find an empty non-tombstone entry
+            if (IS_NIL(entry->value)) {
+                return NULL;
+            }
+        } else if (entry->key->length == length && entry->key->hash == hash && memcmp(entry->key->chars, chars, length) == 0) {
+            // Found it
+            return entry->key;
+        }
+
+        index = (index + 1) % table->capacity;
+    }
+
+    // Unreachable
+    return NULL;
 }
