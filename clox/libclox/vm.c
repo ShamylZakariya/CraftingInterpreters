@@ -27,7 +27,8 @@ static bool isFalsey(Value value)
     return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-static void concatenate() {
+static void concatenate()
+{
     ObjString* b = AS_STRING(pop());
     ObjString* a = AS_STRING(pop());
 
@@ -103,6 +104,16 @@ static InterpretResult run()
         case OP_POP:
             pop();
             break;
+        case OP_GET_LOCAL: {
+            uint8_t slot = READ_BYTE();
+            push(vm.stack[slot]);
+            break;
+        }
+        case OP_SET_LOCAL: {
+            uint8_t slot = READ_BYTE();
+            vm.stack[slot] = peek(0);
+            break;
+        }
         case OP_GET_GLOBAL: {
             ObjString* name = READ_STRING();
             Value value;
@@ -135,16 +146,18 @@ static InterpretResult run()
             break;
         }
         case OP_GREATER:
-            BINARY_OP(BOOL_VAL, >); break;
+            BINARY_OP(BOOL_VAL, >);
+            break;
         case OP_LESS:
-            BINARY_OP(BOOL_VAL, <); break;
+            BINARY_OP(BOOL_VAL, <);
+            break;
         case OP_ADD:
             if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
                 concatenate();
             } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
                 double b = AS_NUMBER(pop());
                 double a = AS_NUMBER(pop());
-                push(NUMBER_VAL(a+b));
+                push(NUMBER_VAL(a + b));
             } else {
                 runtimeError("Operands must be two numbers or two strings.");
                 return INTERPRET_RUNTIME_ERROR;
