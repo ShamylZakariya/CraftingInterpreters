@@ -325,9 +325,17 @@ static void ifStatement() {
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
     int thenJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP); // drop expression value
     statement();
+    int elseJump = emitJump(OP_JUMP);
 
     patchJump(thenJump);
+    emitByte(OP_POP); // if took falsey path, pop here
+
+    if (match(TOKEN_ELSE)) {
+        statement();
+    }
+    patchJump(elseJump);
 }
 
 static void printStatement()
