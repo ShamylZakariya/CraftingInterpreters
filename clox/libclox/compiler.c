@@ -67,7 +67,6 @@ static uint8_t parseVariable(const char* errorMessage);
 static void defineVariable(uint8_t global);
 static uint8_t identifierConstant(Token* name);
 static int resolveLocal(Compiler* compiler, Token* name);
-static void and_(bool canAssign);
 
 //-------------------------------------------------------------------
 
@@ -154,6 +153,19 @@ static void emitBytes(uint8_t byte1, uint8_t byte2)
 {
     emitByte(byte1);
     emitByte(byte2);
+}
+
+static void emitLoop(int loopStart)
+{
+    emitByte(OP_LOOP);
+
+    int offset = currentChunk()->count - loopStart + 2;
+    if (offset > UINT16_MAX) {
+        error("Loop body too large.");
+    }
+
+    emitByte((offset >> 8) & 0xff);
+    emitByte(offset & 0xff);
 }
 
 static int emitJump(uint8_t instruction)
@@ -349,6 +361,21 @@ static void printStatement()
     emitByte(OP_PRINT);
 }
 
+static void whileStatement() {
+    int loopStart = currentChunk()->count;
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after a 'while'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+    int exitJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    statement();
+    emitLoop(loopStart);
+
+    patchJump(exitJump);
+    emitByte(OP_POP);
+}
+
 static void synchronize()
 {
     parser.panicMode = false;
@@ -394,6 +421,8 @@ static void statement()
         printStatement();
     } else if (match(TOKEN_IF)) {
         ifStatement();
+    } else if (match(TOKEN_WHILE)) {
+        whileStatement();
     } else if (match(TOKEN_LEFT_BRACE)) {
         beginScope();
         block();
@@ -413,6 +442,16 @@ static void number(bool canAssign)
 {
     double value = strtod(parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
+}
+
+static void and_(bool canAssign)
+{
+    int endJump = emitJump(OP_JUMP_IF_FALSE);
+
+    emitByte(OP_POP);
+    parsePrecedence(PREC_AND);
+
+    patchJump(endJump);
 }
 
 static void or_(bool canAssign)
@@ -636,16 +675,6 @@ static void defineVariable(uint8_t global)
     }
 
     emitBytes(OP_DEFINE_GLOBAL, global);
-}
-
-static void and_(bool canAssign)
-{
-    int endJump = emitJump(OP_JUMP_IF_FALSE);
-
-    emitByte(OP_POP);
-    parsePrecedence(PREC_AND);
-
-    patchJump(endJump);
 }
 
 static ParseRule* getRule(TokenType type)
