@@ -14,7 +14,7 @@ typedef struct CallFrame {
     Value* slots;
 } CallFrame;
 
-typedef struct VM{
+typedef struct VM {
     CallFrame frames[FRAMES_MAX];
     int frameCount;
 

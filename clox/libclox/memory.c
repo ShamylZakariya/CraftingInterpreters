@@ -7,7 +7,7 @@ static void freeObject(Obj* object)
 {
     switch (object->type) {
     case OBJ_FUNCTION: {
-        ObjFunction* function = (ObjFunction*) object;
+        ObjFunction* function = (ObjFunction*)object;
         freeChunk(&function->chunk);
         FREE(ObjFunction, object);
         // function->name will be handled by GC
