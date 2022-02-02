@@ -4,6 +4,7 @@
         "chunk.h": "c",
         "cstdlib": "c",
         "value.h": "c",
-        "compiler.h": "c"
+        "compiler.h": "c",
+        "object.h": "c"
     }
 }

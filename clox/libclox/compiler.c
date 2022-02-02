@@ -12,14 +12,14 @@
 
 //-------------------------------------------------------------------
 
-typedef struct {
+typedef struct Parser {
     Token current;
     Token previous;
     bool hadError;
     bool panicMode;
 } Parser;
 
-typedef enum {
+typedef enum Precedence {
     PREC_NONE,
     PREC_ASSIGNMENT, // =
     PREC_OR, // or
@@ -35,18 +35,26 @@ typedef enum {
 
 typedef void (*ParseFn)(bool canAssign);
 
-typedef struct {
+typedef struct ParseRule {
     ParseFn prefix;
     ParseFn infix;
     Precedence precedence;
 } ParseRule;
 
-typedef struct {
+typedef struct Local{
     Token name;
     int depth;
 } Local;
 
-typedef struct {
+typedef enum FunctionType {
+    TYPE_FUNCTION,
+    TYPE_SCRIPT
+} FunctionType;
+
+typedef struct Compiler {
+    ObjFunction* function;
+    FunctionType type;
+
     Local locals[UINT8_COUNT];
     int localCount;
     int scopeDepth;
@@ -54,7 +62,6 @@ typedef struct {
 
 Parser parser;
 Compiler* current = NULL;
-Chunk* compilingChunk;
 
 //-------------------------------------------------------------------
 
@@ -72,7 +79,7 @@ static int resolveLocal(Compiler* compiler, Token* name);
 
 static Chunk* currentChunk()
 {
-    return compilingChunk;
+    return &current->function->chunk;
 }
 
 static void errorAt(Token* token, const char* message)
@@ -210,21 +217,34 @@ static void patchJump(int offset)
     currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
-static void initCompiler(Compiler* compiler)
+static void initCompiler(Compiler* compiler, FunctionType type)
 {
+    compiler->function = NULL;
+    compiler->type = type;
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    compiler->function = newFunction(); // assignment after explicit NULL is paranoia for GC
     current = compiler;
+
+    // Stack slot 0 is reserved for VM's internal use and given an empty name so it can't be referenced
+    Local* local = &current->locals[current->localCount++];
+    local->depth = 0;
+    local->name.start = "";
+    local->name.length = 0;
 }
 
-static void endCompiler()
+static ObjFunction* endCompiler()
 {
     emitReturn();
+    ObjFunction* function = current->function;
+
 #ifdef DEBUG_PRINT_CODE
     if (!parser.hadError) {
-        disassembleChunk(currentChunk(), "code");
+        disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "<script>");
     }
 #endif
+
+    return function;
 }
 
 static void beginScope()
@@ -738,12 +758,11 @@ static ParseRule* getRule(TokenType type)
 
 //-------------------------------------------------------------------
 
-bool compile(const char* source, Chunk* chunk)
+ObjFunction* compile(const char* source)
 {
     initScanner(source);
     Compiler compiler;
-    initCompiler(&compiler);
-    compilingChunk = chunk;
+    initCompiler(&compiler, TYPE_SCRIPT);
     parser.hadError = false;
     parser.panicMode = false;
 
@@ -753,6 +772,6 @@ bool compile(const char* source, Chunk* chunk)
         declaration();
     }
 
-    endCompiler();
-    return !parser.hadError;
+    ObjFunction* function = endCompiler();
+    return parser.hadError ? NULL : function;
 }

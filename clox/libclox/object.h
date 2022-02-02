@@ -14,15 +14,15 @@
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
 
-typedef enum {
+typedef enum ObjType {
     OBJ_FUNCTION,
     OBJ_STRING,
 } ObjType;
 
-struct Obj {
+typedef struct Obj {
     ObjType type;
     struct Obj* next;
-};
+} Obj;
 
 typedef struct ObjFunction {
     Obj obj;
@@ -31,12 +31,12 @@ typedef struct ObjFunction {
     ObjString* name;
 } ObjFunction;
 
-struct ObjString {
+typedef struct ObjString {
     Obj obj;
     int length;
     char* chars;
     uint32_t hash;
-};
+} ObjString;
 
 ObjFunction* newFunction();
 ObjString* takeString(char* chars, int length);

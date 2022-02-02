@@ -6,7 +6,7 @@
 
 //-------------------------------------------------------------------
 
-typedef struct {
+typedef struct Scanner {
     const char* start; // beginning of current lexeme
     const char* current; // current character
     int line;
