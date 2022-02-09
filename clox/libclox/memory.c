@@ -6,6 +6,11 @@
 static void freeObject(Obj* object)
 {
     switch (object->type) {
+    case OBJ_CLOSURE: {
+        // free only the closure, not the function. Other closures may be using it.
+        FREE(ObjClosure, object);
+        break;
+    }
     case OBJ_FUNCTION: {
         ObjFunction* function = (ObjFunction*)object;
         freeChunk(&function->chunk);
