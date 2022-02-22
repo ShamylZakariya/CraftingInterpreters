@@ -1,6 +1,0 @@
-fun a(v) {
-    print "In a()";
-    return v + 1;
-}
-
-print a(1);

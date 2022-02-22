@@ -1,3 +1,0 @@
-var foo = "one";
-var bar = foo + " " + "baz";
-foo + " ";
