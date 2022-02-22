@@ -7,6 +7,8 @@ static void freeObject(Obj* object)
 {
     switch (object->type) {
     case OBJ_CLOSURE: {
+        ObjClosure* closure = (ObjClosure*) object;
+        FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);
         // free only the closure, not the function. Other closures may be using it.
         FREE(ObjClosure, object);
         break;
@@ -27,6 +29,10 @@ static void freeObject(Obj* object)
         FREE(ObjString, object);
         break;
     }
+    case OBJ_UPVALUE:
+        // Upvalue does not own the closed over variable
+        FREE(ObjUpvalue, object);
+        break;
     }
 }
 

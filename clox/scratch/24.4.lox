@@ -1,5 +1,5 @@
-fun areWeHavingItYet() {
+fun CORRECT() {
   print "Yes we are!";
 }
 
-print areWeHavingItYet;
+print CORRECT;

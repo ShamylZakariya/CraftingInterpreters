@@ -3,15 +3,15 @@ var b = 4 < 6;
 var c = 3 > 5;
 
 if (a and b) {
-    print "It's true";
+    print "CORRECT";
 }
 
 if (b or c) {
-    print "It's also true";
+    print "CORRECT";
 }
 
 if (b and c) {
     print "ERROR";
 } else {
-    print "It's expected";
+    print "CORRECT";
 }

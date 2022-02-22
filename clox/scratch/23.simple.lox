@@ -3,9 +3,9 @@ var b = 20;
 var condition = a > b;
 
 if (condition) {
-    print "it was true";
+    print "ERROR";
 } else {
-    print "it was false";
+    print "CORRECT";
 }
 
 print "Beyond the condition";
