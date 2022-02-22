@@ -1,0 +1,11 @@
+var a = 5;
+var b = 20;
+var condition = a > b;
+
+if (condition) {
+    print "it was true";
+} else {
+    print "it was false";
+}
+
+print "Beyond the condition";
