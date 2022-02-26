@@ -44,6 +44,7 @@ typedef struct ParseRule {
 typedef struct Local {
     Token name;
     int depth;
+    bool isCaptured;
 } Local;
 
 typedef struct Upvalue {
@@ -245,6 +246,7 @@ static void initCompiler(Compiler* compiler, FunctionType type)
     // Stack slot 0 is reserved for VM's internal use and given an empty name so it can't be referenced
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
+    local->isCaptured = false;
     local->name.start = "";
     local->name.length = 0;
 }
@@ -274,7 +276,11 @@ static void endScope()
     current->scopeDepth--;
 
     while ((current->localCount > 0) && (current->locals[current->localCount - 1].depth > current->scopeDepth)) {
-        emitByte(OP_POP);
+        if (current->locals[current->localCount - 1].isCaptured) {
+            emitByte(OP_CLOSE_UPVALUE);
+        } else {
+            emitByte(OP_POP);
+        }
         current->localCount--;
     }
 }
@@ -807,6 +813,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name)
 
     int local = resolveLocal(compiler->enclosing, name);
     if (local != -1) {
+        compiler->enclosing->locals[local].isCaptured = true;
         return addUpvalue(compiler, (uint8_t) local, true);
     }
 
@@ -828,6 +835,7 @@ static void addLocal(Token name)
     Local* local = &current->locals[current->localCount++];
     local->name = name;
     local->depth = -1; // sentinel value marking var uninitialized
+    local->isCaptured = false;
 }
 
 static void declareVariable()
