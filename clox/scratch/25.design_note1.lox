@@ -1,0 +1,13 @@
+fun main() {
+    for (var a = 0; a < 3; a = a + 1) {
+        fun closure(i) {
+            print "a is: ";
+            print a;
+            print "i is: ";
+            print i;
+        }
+        closure(a);
+    }
+}
+
+main();
