@@ -2,6 +2,7 @@
 
 #include "compiler.h"
 #include "memory.h"
+#include "table.h"
 #include "vm.h"
 
 #ifdef DEBUG_LOG_GC
@@ -112,6 +113,28 @@ static void traceReferences()
     }
 }
 
+static void sweep()
+{
+    Obj* previous = NULL;
+    Obj* object = vm.objects;
+    while (object != NULL) {
+        if (object->isMarked) {
+            object->isMarked = false; // unmark for next GC pass
+            previous = object;
+            object = object->next;
+        } else {
+            Obj* unreached = object;
+            object = object->next;
+            if (previous != NULL) {
+                previous->next = object;
+            } else {
+                vm.objects = object;
+            }
+            freeObject(unreached);
+        }
+    }
+}
+
 //-------------------------------------------------------------------
 
 void* reallocate(void* pointer, size_t oldSize, size_t newSize)
@@ -178,6 +201,8 @@ void collectGarbage()
 
     markRoots();
     traceReferences();
+    tableRemoveWhite(&vm.strings);
+    sweep();
 
 #ifdef DEBUG_LOG_GC
     printf("-- gc end\n");
