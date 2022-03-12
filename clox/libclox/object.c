@@ -32,7 +32,11 @@ static ObjString* allocateString(char* chars, int length, uint32_t hash)
     string->length = length;
     string->chars = chars;
     string->hash = hash;
+
+    push(OBJ_VAL(string)); // stash so GC doesn't collect it if tableSet triggers cleanup
     tableSet(&vm.strings, string, NIL_VAL);
+    pop();
+
     return string;
 }
 
