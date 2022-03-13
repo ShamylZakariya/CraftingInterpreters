@@ -64,6 +64,7 @@ static bool callValue(Value callee, int argCount)
         switch (OBJ_TYPE(callee)) {
         case OBJ_BOUND_METHOD: {
             ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+            vm.stackTop[-argCount - 1] = bound->receiver; // assign 'this' to slot 0 in callframe
             return call(bound->method, argCount);
         }
         case OBJ_CLASS: {

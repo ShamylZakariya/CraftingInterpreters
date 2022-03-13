@@ -5,7 +5,7 @@ class Person {
 }
 
 var jane = Person();
-jane.name = "Jane";
+jane.name = "CORRECT";
 
 jane.sayName();
 
