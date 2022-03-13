@@ -1,0 +1,3 @@
+class Foo{}
+var f = Foo();
+print f.bar = "CORRECT"; // prints "CORRECT"

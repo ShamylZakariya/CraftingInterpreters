@@ -40,7 +40,7 @@ static void freeObject(Obj* object)
     case OBJ_INSTANCE: {
         // note, instance owns its table, but not necessarily its contents
         // the GC will handle them. instance also doesn't own the class, obv.
-        ObjInstance* instance = (ObjInstance*) object;
+        ObjInstance* instance = (ObjInstance*)object;
         freeTable(&instance->fields);
         FREE(ObjInstance, object);
         break;
@@ -115,8 +115,8 @@ static void blackenObject(Obj* object)
         break;
     }
     case OBJ_INSTANCE: {
-        ObjInstance* instance = (ObjInstance*) object;
-        markObject((Obj*) instance->klass);
+        ObjInstance* instance = (ObjInstance*)object;
+        markObject((Obj*)instance->klass);
         markTable(&instance->fields);
         break;
     }
