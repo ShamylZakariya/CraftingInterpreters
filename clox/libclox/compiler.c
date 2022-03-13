@@ -86,6 +86,7 @@ static int resolveLocal(Compiler* compiler, Token* name);
 static void markInitialized();
 static uint8_t argumentList();
 static int resolveUpvalue(Compiler* compiler, Token* name);
+static void declareVariable();
 
 //-------------------------------------------------------------------
 
@@ -400,6 +401,18 @@ static void function(FunctionType type)
     }
 }
 
+static void classDeclaration() {
+    consume(TOKEN_IDENTIFIER, "Expect class name.");
+    uint8_t nameConstant = identifierConstant(&parser.previous);
+    declareVariable();
+
+    emitBytes(OP_CLASS, nameConstant);
+    defineVariable(nameConstant);
+
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+}
+
 static void funDeclaration()
 {
     uint8_t global = parseVariable("Expect function name.");
@@ -565,7 +578,9 @@ static void synchronize()
 
 static void declaration()
 {
-    if (match(TOKEN_FUN)) {
+    if (match(TOKEN_CLASS)) {
+        classDeclaration();
+    } else if (match(TOKEN_FUN)) {
         funDeclaration();
     } else if (match(TOKEN_VAR)) {
         varDeclaration();
