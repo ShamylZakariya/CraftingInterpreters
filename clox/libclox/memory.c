@@ -22,7 +22,7 @@ static void freeObject(Obj* object)
     case OBJ_BOUND_METHOD: {
         // the bound method doesn't own its references
         FREE(ObjBoundMethod, object);
-        break;;
+        break;
     }
     case OBJ_CLASS: {
         ObjClass* klass = (ObjClass*)object;
@@ -84,6 +84,7 @@ static void markRoots()
 
     markTable(&vm.globals);
     markCompilerRoots();
+    markObject((Obj*)vm.initString);
 }
 
 static void markArray(ValueArray* array)
@@ -103,7 +104,7 @@ static void blackenObject(Obj* object)
 
     switch (object->type) {
     case OBJ_BOUND_METHOD: {
-        ObjBoundMethod* bound = (ObjBoundMethod*) object;
+        ObjBoundMethod* bound = (ObjBoundMethod*)object;
         markValue(bound->receiver);
         markObject((Obj*)bound->method);
         break;
