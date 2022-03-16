@@ -5,11 +5,13 @@ build:
     meson setup --buildtype=debug builddir
     meson compile --clean -C builddir
     meson compile -C builddir
+    ln -sf builddir/clox ./clox
 
 build-release:
-    meson setup --buildtype=release builddir
-    meson compile --clean -C builddir
-    meson compile -C builddir
+    meson setup --buildtype=release release
+    meson compile --clean -C release
+    meson compile -C release
+    ln -sf release/clox ./clox
 
 format:
     find ./ \( -iname "*.h" -or -iname "*.c" \) | xargs clang-format -i -style=file
