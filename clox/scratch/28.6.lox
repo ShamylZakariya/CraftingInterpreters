@@ -1,0 +1,12 @@
+class CallableField {
+  init() {
+    fun f() {
+      print "CORRECT";
+    }
+
+    this.field = f;
+  }
+}
+
+var cf = CallableField();
+cf.field();

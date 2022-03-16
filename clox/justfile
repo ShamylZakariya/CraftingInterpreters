@@ -1,0 +1,16 @@
+clean:
+    meson compile --clean -C builddir
+
+build:
+    meson setup --buildtype=debug builddir
+    meson compile --clean -C builddir
+    meson compile -C builddir
+
+build-release:
+    meson setup --buildtype=release builddir
+    meson compile --clean -C builddir
+    meson compile -C builddir
+
+format:
+    find ./ \( -iname "*.h" -or -iname "*.c" \) | xargs clang-format -i -style=file
+    find ./libclox \( -iname "*.h" -or -iname "*.c" \) | xargs clang-format -i -style=file
