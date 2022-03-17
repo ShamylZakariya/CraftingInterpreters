@@ -1,0 +1,15 @@
+class A {
+  method() {
+    print "CORRECT";
+  }
+}
+
+class B < A {
+  method() {
+    var closure = super.method;
+    closure(); // Prints "A".
+  }
+}
+
+var b = B();
+b.method();
